@@ -1,0 +1,257 @@
+/*
+ * 色の役割（dataviz の参照パレットから）
+ *  --up / --down : 上昇＝赤、下落＝青（日本の証券会社と同じ）。必ず ▲▼ か ± と一緒に使う
+ *  --s-sector     : チャートのセクター線（カテゴリ色 2 番＝オレンジ）
+ *  --ink          : チャートの銘柄線（いちばん強い線）。日経平均は灰色の破線
+ */
+:root {
+  color-scheme: light;
+  --bg: #f4f4f2;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink2: #52514e;
+  --muted: #7a7974;
+  --line: #e4e3df;
+  --up: #e34948;
+  --down: #2a78d6;
+  --neutral: #f0efec;
+  --s-sector: #eb6834;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --accent: #2a78d6;
+  --radius: 14px;
+  --nav-h: 58px;
+  --hz-h: 46px;
+  font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #111110;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink2: #c3c2b7;
+    --muted: #8f8e86;
+    --line: #2e2e2b;
+    --up: #e66767;
+    --down: #3987e5;
+    --neutral: #383835;
+    --s-sector: #d95926;
+    --good-text: #3fbf3f;
+    --accent: #3987e5;
+  }
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); }
+a { color: var(--accent); }
+button { font: inherit; color: inherit; }
+h1, h2 { margin: 0; }
+
+.app { min-height: 100dvh; }
+.content {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 12px calc(var(--nav-h) + var(--hz-h) + 24px + env(safe-area-inset-bottom));
+}
+
+/* ------------------------------------------------------------ 上と下のバー */
+.topbar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: 8px;
+  padding: calc(env(safe-area-inset-top) + 8px) 0 8px;
+  background: var(--bg);
+}
+.topbar h1 { flex: 1; font-size: 1.15rem; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon-btn { width: 40px; height: 40px; border: 0; background: none; font-size: 1.8rem; line-height: 1; cursor: pointer; }
+.icon-spacer { width: 40px; }
+.topbar .link-btn { min-width: 40px; }
+
+.bottom-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--surface); border-top: 1px solid var(--line);
+}
+.bottom-nav button {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 0; background: none; font-size: 0.72rem; color: var(--muted); cursor: pointer;
+}
+.bottom-nav button.active { color: var(--ink); font-weight: 600; }
+.nav-icon { font-size: 1.15rem; line-height: 1; }
+
+/* 期間の切り替えは親指の届く位置（下のタブの真上） */
+.horizon-bar {
+  position: fixed; left: 0; right: 0; z-index: 9;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  height: var(--hz-h);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: color-mix(in oklab, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--line);
+}
+
+/* ------------------------------------------------------------ 部品 */
+.card {
+  display: block; width: 100%; text-align: left;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px; margin: 0 0 12px;
+}
+button.card { cursor: pointer; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.card h2 { font-size: 1rem; }
+.pad { padding: 0 4px; }
+.muted { color: var(--muted); }
+.small { font-size: 0.82rem; }
+.big { font-size: 1.45rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.empty { color: var(--muted); text-align: center; padding: 16px 0; margin: 0; }
+.warn-text { color: var(--critical); }
+@media (prefers-color-scheme: dark) { .warn-text { color: var(--serious); } }
+
+.pct { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pct[data-dir='up'] { color: var(--up); }
+.pct[data-dir='down'] { color: var(--down); }
+
+.freshness {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px;
+  font-size: 0.82rem; padding: 0 4px 10px;
+}
+.freshness .link-btn { margin-left: auto; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;
+  font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid;
+}
+.badge-buy { color: var(--good-text); border-color: var(--good); }
+.badge-caution { color: var(--critical); border-color: var(--critical); }
+.badge-watch { color: var(--muted); border-color: var(--line); }
+@media (prefers-color-scheme: dark) { .badge-caution { color: var(--serious); border-color: var(--serious); } }
+.held-tag { margin-left: 6px; font-size: 0.68rem; padding: 0 6px; border-radius: 6px; background: var(--neutral); color: var(--ink2); vertical-align: 2px; }
+
+.list { display: flex; flex-direction: column; }
+.row {
+  display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  width: 100%; text-align: left; padding: 10px 2px; min-height: 52px;
+  background: none; border: 0; border-top: 1px solid var(--line); cursor: pointer;
+}
+.list .row:first-child { border-top: 0; }
+.row-main { display: flex; flex-direction: column; min-width: 0; }
+.row-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.decomp-inline { color: var(--ink2); }
+
+.market-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.comment { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 0.9rem; }
+.comment p { margin: 0 0 6px; }
+.sources { margin: 6px 0 0; padding-left: 18px; font-size: 0.8rem; }
+.sources li { margin: 2px 0; }
+.factors { margin: 4px 0; padding-left: 18px; font-size: 0.88rem; }
+.reason { margin: 10px 0 0; font-size: 0.9rem; }
+.stock-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+
+.link-btn { background: none; border: 0; padding: 6px 4px; color: var(--accent); cursor: pointer; font-size: 0.88rem; }
+.link-btn.block { display: block; width: 100%; text-align: center; margin-top: 4px; }
+.btn {
+  display: inline-block; padding: 9px 14px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--surface); text-decoration: none; color: var(--ink); cursor: pointer; font-size: 0.9rem;
+}
+.btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.btn.danger { color: var(--critical); }
+.btn:disabled { opacity: 0.5; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+.segmented { display: inline-flex; background: var(--neutral); border-radius: 10px; padding: 3px; gap: 2px; }
+.segmented button {
+  border: 0; background: none; padding: 5px 11px; border-radius: 8px; font-size: 0.82rem; cursor: pointer; color: var(--ink2);
+}
+.segmented button[aria-checked='true'] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px #0002; }
+
+/* ------------------------------------------------------------ セクター */
+.sector-head { display: flex; justify-content: space-between; align-items: baseline; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chip {
+  font-size: 0.78rem; padding: 3px 8px; border-radius: 8px; background: var(--neutral); color: var(--ink2);
+  border-left: 3px solid var(--line);
+}
+.chip[data-dir='up'] { border-left-color: var(--up); }
+.chip[data-dir='down'] { border-left-color: var(--down); }
+.chip strong { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.table-wrap { overflow-x: auto; }
+.heat-table { width: 100%; border-collapse: separate; border-spacing: 2px; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.heat-table th { text-align: left; font-weight: 500; white-space: nowrap; padding: 4px 6px; }
+.heat-table thead th { color: var(--muted); font-size: 0.75rem; text-align: right; }
+.heat-table thead th:first-child { text-align: left; }
+.heat-table td { text-align: right; padding: 6px; border-radius: 6px; }
+.heat-table .clickable { cursor: pointer; }
+.heat-market th { font-weight: 700; }
+.heat { background: var(--neutral); }
+.heat[data-dir='up'] { background: color-mix(in oklab, var(--up) var(--a), var(--neutral)); }
+.heat[data-dir='down'] { background: color-mix(in oklab, var(--down) var(--a), var(--neutral)); }
+
+/* ------------------------------------------------------------ 内訳 */
+.decomp { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
+.decomp-row { display: grid; grid-template-columns: 64px 1fr 64px; align-items: center; gap: 8px; font-size: 0.85rem; }
+.decomp-total { border-top: 1px solid var(--line); padding-top: 6px; font-weight: 600; }
+.decomp-track { position: relative; height: 12px; }
+.decomp-track::before { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--muted); }
+.decomp-bar { position: absolute; top: 1px; height: 10px; border-radius: 4px; background: var(--neutral); }
+.decomp-bar[data-dir='up'] { background: var(--up); }
+.decomp-bar[data-dir='down'] { background: var(--down); }
+.decomp-val { text-align: right; font-variant-numeric: tabular-nums; }
+
+.mini-table { width: 100%; font-size: 0.8rem; border-collapse: collapse; font-variant-numeric: tabular-nums; margin-top: 6px; }
+.mini-table th, .mini-table td { padding: 4px 4px; text-align: right; border-top: 1px solid var(--line); }
+.mini-table thead th { border-top: 0; color: var(--muted); font-weight: 500; }
+.mini-table th[scope='row'] { text-align: left; font-weight: 500; }
+
+.stats { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; font-size: 0.88rem; }
+.stats dt { color: var(--muted); }
+.stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.dt-note { display: block; font-size: 0.75rem; }
+
+/* ------------------------------------------------------------ チャート */
+.chart { width: 100%; margin-top: 10px; }
+.chart svg { display: block; overflow: visible; }
+.chart-readout { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 0.78rem; min-height: 2.6em; align-items: center; margin-bottom: 4px; }
+.chart-date { font-weight: 600; }
+.chart-val { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.key { display: inline-block; width: 14px; height: 0; vertical-align: middle; margin-right: 4px; border-top: 2px solid; }
+.key-main { border-color: var(--ink); }
+.key-sector { border-color: var(--s-sector); }
+.key-market { border-color: var(--muted); border-top-style: dashed; }
+.grid { stroke: var(--line); stroke-width: 1; }
+.axis-zero { stroke: var(--muted); stroke-width: 1; }
+.tick { fill: var(--muted); font-size: 10px; }
+.line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.line-main { stroke: var(--ink); }
+.line-sector { stroke: var(--s-sector); }
+.line-market { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.end-label { fill: var(--ink2); font-size: 10px; }
+.crosshair { stroke: var(--muted); stroke-width: 1; }
+.dot { stroke: var(--surface); stroke-width: 2; }
+.dot-main { fill: var(--ink); }
+.dot-sector { fill: var(--s-sector); }
+.dot-market { fill: var(--muted); }
+
+/* ------------------------------------------------------------ 入力 */
+.form { display: flex; flex-direction: column; gap: 10px; }
+.form label { display: flex; flex-direction: column; gap: 3px; font-size: 0.82rem; color: var(--ink2); }
+.form input, .form select {
+  font: inherit; font-size: 16px; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+}
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.seg-row { display: flex; gap: 8px; }
+.seg { flex: 1; text-align: center; padding: 8px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.seg input { display: none; }
+.seg.on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.preview { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.preview-list { padding-left: 18px; margin: 6px 0; }
+.help p { margin: 0 0 8px; }

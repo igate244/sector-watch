@@ -1,0 +1,86 @@
+# 平日の大引け後に株価を取得 → 計算 → ニュース判定 → 画面をビルド → GitHub Pages に公開
+name: update
+
+on:
+  schedule:
+    - cron: "30 7 * * 1-5"   # 平日 16:30（日本時間）。GitHub の混雑で数十分遅れることがある
+  push:
+    branches: [main]         # 画面やロジックを直したら、そのまま公開し直す（Gemini は呼ばない）
+  workflow_dispatch:         # スマホの GitHub アプリから「Run workflow」で手動実行もできる
+
+permissions:
+  contents: write   # 60 日放置で定期実行が止まらないようにする空コミット用
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 計算に使う部品を入れる
+        run: pip install -r requirements.txt
+
+      - name: 株価の取得と計算
+        env:
+          WATCHLIST_CSV_URL: ${{ vars.WATCHLIST_CSV_URL }}
+          WATCHLIST_EDIT_URL: ${{ vars.WATCHLIST_EDIT_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}       # 未設定なら Google ニュースの見出しだけ
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          NEWS_MAX_CALLS: ${{ vars.NEWS_MAX_CALLS || '15' }}
+          # push のときは Gemini を呼ばず、公開中の前回の判定を使い回す
+          NEWS_MODE: ${{ github.event_name == 'push' && 'reuse' || '' }}
+          PREV_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/latest.json
+        run: python -m pipeline.run --out web/public/data
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: 画面のビルド（型チェック込み）
+        working-directory: web
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+        run: |
+          npm ci
+          npm run build
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: web/dist
+
+      - name: Keepalive（60 日コミットがないと GitHub が定期実行を止めるのを防ぐ）
+        if: github.event_name == 'schedule'
+        run: |
+          last=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          if [ $(( (now - last) / 86400 )) -ge 45 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "keepalive"
+            git push
+          fi
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
