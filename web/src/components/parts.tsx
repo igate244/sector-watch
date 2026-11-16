@@ -1,21 +1,23 @@
 import type { DataState, Horizon, Latest, Stock } from '../lib/data';
 import { HORIZONS } from '../lib/data';
 import { businessDaysSince, dateJa, HORIZON_LABEL, signed, timeJa } from '../lib/format';
-import { DecompInline, Pct, SignalBadge } from './ui';
+import { Chg, DecompInline, Pct, SignalBadge } from './ui';
 
 /** データの鮮度。古い値を最新と見間違えないよう、常に画面の上に出す */
 export function Freshness({ state }: { state: DataState }) {
   const d = state.data;
   if (!d) return null;
   const late = businessDaysSince(d.asof);
+  const st = state.offline ? 'offline' : late >= 2 ? 'late' : 'ok';
   return (
-    <div className="freshness" role="status">
+    <div className="freshness" role="status" data-state={st}>
+      <i className="dot-status" aria-hidden />
       <span>
-        <strong>{dateJa(d.asof)}</strong> 大引け時点
+        <span className="num">{dateJa(d.asof)}</span> 終値
       </span>
-      <span className="muted">・{timeJa(d.generated_at)} 計算</span>
-      {state.offline && <span className="warn-text">・オフライン（前回の結果）</span>}
-      {!state.offline && late >= 2 && <span className="warn-text">・更新が止まっているかもしれません</span>}
+      <span className="muted">· {timeJa(d.generated_at)} 計算</span>
+      {state.offline && <span className="warn-text">· オフライン（前回の結果）</span>}
+      {!state.offline && late >= 2 && <span className="warn-text">· 更新が止まっているかも</span>}
       <button type="button" className="link-btn" onClick={state.reload} disabled={state.loading}>
         {state.loading ? '読込中…' : '再読込'}
       </button>
@@ -61,15 +63,16 @@ export function StockRow({
           {s.name}
           {held && <span className="held-tag">保有</span>}
         </span>
-        <span className="row-sub muted small">
-          {s.code}
-          {showSector && ` · ${s.sector}`} · {s.last.toLocaleString('ja-JP')}円
+        <span className="row-sub">
+          <span className="num">{s.code}</span>
+          {showSector && <span>{s.sector}</span>}
+          <span className="num">¥{s.last.toLocaleString('ja-JP')}</span>
+          <SignalBadge label={s.signal.label} />
         </span>
         {h !== '1' && <DecompInline d={d} />}
       </span>
       <span className="row-side">
-        <Pct v={d?.r} strong />
-        <SignalBadge label={s.signal.label} />
+        <Chg v={d?.r} />
       </span>
     </button>
   );
@@ -87,7 +90,13 @@ export function HeatTable({ d, onOpen }: { d: Latest; onOpen: (name: string) => 
   const cell = (v: number | null, key: string) => {
     const a = v == null ? 0 : Math.min(1, Math.abs(v) / 0.12);
     return (
-      <td key={key} className="heat" data-dir={v == null ? 'flat' : v > 0 ? 'up' : 'down'} style={{ ['--a' as string]: `${Math.round(a * 70)}%` }}>
+      <td
+        key={key}
+        className="heat"
+        data-dir={v == null ? 'flat' : v > 0 ? 'up' : 'down'}
+        data-strong={a > 0.7}
+        style={{ ['--a' as string]: `${Math.round(a * 85)}%` }}
+      >
         {signed(v)}
       </td>
     );
@@ -122,7 +131,7 @@ export function HeatTable({ d, onOpen }: { d: Latest; onOpen: (name: string) => 
           ))}
         </tbody>
       </table>
-      <p className="muted small">2 行目からは日経平均との差。20 日の弱い順。行をタップでセクターを開く。</p>
+      <p className="note" style={{ marginTop: 6 }}>2 行目からは日経平均との差。20 日の弱い順。タップで開く。</p>
     </div>
   );
 }

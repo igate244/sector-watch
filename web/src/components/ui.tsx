@@ -29,17 +29,18 @@ export function SignalBadge({ label }: { label: SignalLabel }) {
  */
 export function DecompBars({ d, scale }: { d: Dec | null; scale?: number }) {
   if (!d) return <p className="muted small">データが足りません</p>;
-  const rows: [string, number][] = [
-    ['日経平均', d.m],
-    ['セクター', d.s],
-    ...(d.i !== undefined ? ([['個別', d.i]] as [string, number][]) : []),
+  const rows: [string, number, string][] = [
+    ['日経平均', d.m, 'm'],
+    ['セクター', d.s, 's'],
+    ...(d.i !== undefined ? ([['個別', d.i, 'i']] as [string, number, string][]) : []),
   ];
   const max = scale ?? Math.max(0.02, Math.abs(d.r), ...rows.map(([, v]) => Math.abs(v)));
   return (
     <div className="decomp" role="table" aria-label="騰落率の内訳">
-      {rows.map(([label, v]) => (
+      {rows.map(([label, v, k]) => (
         <div className="decomp-row" role="row" key={label}>
           <span className="decomp-label" role="cell">
+            <i className={`fdot fdot-${k}`} aria-hidden />
             {label}
           </span>
           <span className="decomp-track" role="cell" aria-hidden>
@@ -76,14 +77,102 @@ export function DecompBars({ d, scale }: { d: Dec | null; scale?: number }) {
   );
 }
 
-/** 内訳を 1 行で。リストの中で使う */
+/** 内訳を 1 行で。リストの中で使う。● の色はチャートの線と同じ（灰＝日経、橙＝セクター、黒＝個別） */
 export function DecompInline({ d }: { d: Dec | null }) {
   if (!d) return null;
   return (
-    <span className="decomp-inline small">
-      日経 {signed(d.m)} / セクター {signed(d.s)}
-      {d.i !== undefined && <> / 個別 <strong>{signed(d.i)}</strong></>}
+    <span className="factor-line" aria-label="騰落率の内訳">
+      <span>
+        <i className="fdot fdot-m" aria-hidden />
+        日経<b>{signed(d.m)}</b>
+      </span>
+      <span>
+        <i className="fdot fdot-s" aria-hidden />
+        業種<b>{signed(d.s)}</b>
+      </span>
+      {d.i !== undefined && (
+        <span className="f-i">
+          <i className="fdot fdot-i" aria-hidden />
+          個別<b>{signed(d.i)}</b>
+        </span>
+      )}
     </span>
+  );
+}
+
+/** 騰落率の塗りタグ。一覧の右端用 */
+export function Chg({ v, digits = 1 }: { v: number | null | undefined; digits?: number }) {
+  return (
+    <span className="chg" data-dir={dir(v)}>
+      {pct(v, digits)}
+    </span>
+  );
+}
+
+/** 見出しの横の件数 */
+export function Count({ n, kind }: { n: number; kind?: string }) {
+  return (
+    <span className="count" data-kind={kind}>
+      {n}
+    </span>
+  );
+}
+
+/** 小さな推移の線。最後の値と最初の値で色を決める */
+export function Sparkline({ values, days = 60 }: { values: (number | null)[]; days?: number }) {
+  const xs = values.slice(-days - 1);
+  const pts = xs.map((v, i) => [i, v] as const).filter((p): p is readonly [number, number] => p[1] != null);
+  if (pts.length < 2) return null;
+  const W = 120;
+  const H = 34;
+  const ys = pts.map((p) => p[1]);
+  const lo = Math.min(...ys);
+  const hi = Math.max(...ys);
+  const sx = (i: number) => (i / (xs.length - 1)) * W;
+  const sy = (v: number) => (hi === lo ? H / 2 : 2 + (1 - (v - lo) / (hi - lo)) * (H - 4));
+  const line = pts.map(([i, v], k) => `${k ? 'L' : 'M'}${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join('');
+  const area = `${line}L${sx(pts[pts.length - 1][0]).toFixed(1)},${H}L${sx(pts[0][0]).toFixed(1)},${H}Z`;
+  const first = pts[0][1];
+  return (
+    <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" data-dir={dir(pts[pts.length - 1][1] / first - 1)} aria-hidden>
+      <line x1="0" x2={W} y1={sy(first)} y2={sy(first)} vectorEffect="non-scaling-stroke" />
+      <path className="a" d={area} />
+      <path className="l" d={line} vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+const ICONS: Record<string, ReactNode> = {
+  today: <path d="M3 17l5-5 4 4 8-8M15 8h5v5" />,
+  sectors: (
+    <>
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+    </>
+  ),
+  holdings: (
+    <>
+      <rect x="3" y="6" width="18" height="13" rx="2" />
+      <path d="M3 10h18M16 14.5h2" />
+    </>
+  ),
+  settings: (
+    <>
+      <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+      <circle cx="16" cy="7" r="2" />
+      <circle cx="10" cy="17" r="2" />
+    </>
+  ),
+  back: <path d="M15 5l-7 7 7 7" />,
+};
+
+export function Icon({ name }: { name: keyof typeof ICONS | string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {ICONS[name]}
+    </svg>
   );
 }
 
@@ -139,7 +228,7 @@ export function TopBar({ title, onBack, right }: { title: ReactNode; onBack?: ()
     <header className="topbar">
       {onBack ? (
         <button type="button" className="icon-btn" onClick={onBack} aria-label="戻る">
-          ‹
+          <Icon name="back" />
         </button>
       ) : (
         <span className="icon-spacer" />

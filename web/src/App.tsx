@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLatest, type Horizon } from './lib/data';
 import { autoBackup } from './lib/drive';
-import { HorizonPicker } from './components/ui';
+import { HorizonPicker, Icon } from './components/ui';
 import TodayScreen from './screens/TodayScreen';
 import SectorsScreen from './screens/SectorsScreen';
 import SectorDetail from './screens/SectorDetail';
@@ -26,11 +26,11 @@ export interface Nav {
 const MARK = 'sector-watch-overlay';
 const H_KEY = 'sw.horizon';
 
-const TABS: [Tab, string, string][] = [
-  ['today', '今日', '◉'],
-  ['sectors', 'セクター', '▦'],
-  ['holdings', '保有', '¥'],
-  ['settings', '設定', '⚙'],
+const TABS: [Tab, string][] = [
+  ['today', '今日'],
+  ['sectors', 'セクター'],
+  ['holdings', '保有'],
+  ['settings', '設定'],
 ];
 
 export default function App() {
@@ -98,12 +98,12 @@ export default function App() {
       </main>
       {showHorizon && (
         <div className="horizon-bar">
-          <span className="muted small">期間</span>
+          <span className="hz-label">期間</span>
           <HorizonPicker value={h} onChange={changeH} />
         </div>
       )}
       <nav className="bottom-nav" aria-label="画面の切り替え">
-        {TABS.map(([t, label, icon]) => (
+        {TABS.map(([t, label]) => (
           <button
             key={t}
             type="button"
@@ -112,7 +112,7 @@ export default function App() {
             onClick={() => changeTab(t)}
           >
             <span aria-hidden className="nav-icon">
-              {icon}
+              <Icon name={t} />
             </span>
             {label}
           </button>
