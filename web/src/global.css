@@ -432,3 +432,17 @@ button.card:active { background: var(--surface2); }
 .sector-open { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
 .sector-card .chart { margin-top: 6px; }
 .sector-card .chart-readout { min-height: 0; padding: 3px 8px; }
+
+/* 保有: 平均取得単価の線 */
+.ref-line { stroke: var(--good); stroke-width: 1; stroke-dasharray: 6 3; }
+.ref-label { fill: var(--good-text); font-size: 9.5px; font-weight: 700; }
+.hold-card .chart { margin-top: 6px; }
+.hold-card .chart-readout { min-height: 0; padding: 3px 8px; }
+.hold-pnl { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.hold-pnl .yen { font-family: var(--num); font-weight: 700; font-size: 1rem; font-variant-numeric: tabular-nums; }
+.hold-pnl .yen[data-dir='up'] { color: var(--up); }
+.hold-pnl .yen[data-dir='down'] { color: var(--down); }
+.hold-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-top: 8px; }
+.hold-meta > div { background: var(--surface); padding: 5px 8px; }
+.hold-meta .k { font-size: 0.64rem; color: var(--muted); }
+.hold-meta .v { font-family: var(--num); font-size: 0.86rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
