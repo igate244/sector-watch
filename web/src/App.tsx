@@ -33,6 +33,29 @@ const TABS: [Tab, string][] = [
   ['settings', '設定'],
 ];
 
+/**
+ * 指定の位置へスクロールする。スマホで慣性スクロール中にタップすると、
+ * 1 回の scrollTo が慣性に負けて途中で止まるので、数回かけ直す（その間に指で動かしたらやめる）。
+ */
+function scrollToY(y: number) {
+  const set = () => {
+    window.scrollTo({ top: y, left: 0, behavior: 'instant' as ScrollBehavior });
+    const el = document.scrollingElement;
+    if (el) el.scrollTop = y;
+  };
+  let touched = false;
+  const stop = () => (touched = true);
+  window.addEventListener('touchstart', stop, { once: true, passive: true });
+  window.addEventListener('wheel', stop, { once: true, passive: true });
+  set();
+  requestAnimationFrame(() => !touched && set());
+  for (const ms of [60, 150, 300, 500]) setTimeout(() => !touched && set(), ms);
+  setTimeout(() => {
+    window.removeEventListener('touchstart', stop);
+    window.removeEventListener('wheel', stop);
+  }, 600);
+}
+
 export default function App() {
   const state = useLatest();
   const [tab, setTab] = useState<Tab>('today');
@@ -58,11 +81,11 @@ export default function App() {
   const prevDepth = useRef(0);
   useLayoutEffect(() => {
     const depth = stack.length;
-    if (depth > prevDepth.current) window.scrollTo(0, 0);
+    if (depth > prevDepth.current) scrollToY(0);
     else if (depth < prevDepth.current) {
       let y = 0;
       while (scrolls.current.length > depth) y = scrolls.current.pop() ?? 0;
-      window.scrollTo(0, y);
+      scrollToY(y);
     }
     prevDepth.current = depth;
   }, [stack.length]);
@@ -90,7 +113,7 @@ export default function App() {
       window.history.go(-n);
     }
     setTab(t);
-    window.scrollTo(0, 0);
+    scrollToY(0);
   };
 
   const changeH = (v: Horizon) => {
