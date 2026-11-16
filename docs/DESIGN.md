@@ -115,7 +115,8 @@ TOPIX と東証業種別指数は yfinance で取れない。TOPIX は連動 ETF
 ### 計算結果 `data/latest.json`（毎日作り直す）
 ```
 generated_at, asof（終値の日付）, dates[]（直近 250 営業日）
-market: { n225, topix }            … 騰落率・終値の推移
+market: { n225, topix, intraday{1|5|20: {interval, t[], n225[], topix[]}} }
+                                   … 騰落率・終値の推移。intraday は市場カードのチャート用の分足（5分・15分・60分、先頭は前日の終値）
 sectors[]: { name, ret{h}, dec{h:{m,s}}, beta, series[], codes[] }
 stocks[]:  { code, name, sector, memo, last, ret{h}, dec{h:{m,s,i}}, beta,
              dd60, pos1y, z20, signal{label, reason}, rise{score, hits[], near_high, ext50, vol_ratio}|null,
@@ -147,3 +148,7 @@ trades: id, date, code, name, side(buy|sell), price, qty, account(NISA|特定|�
 - Gemini の呼び出しは 1 回の実行につき最大 15 件（下げている銘柄だけ）＋市場概況 1 件。
   月に最大 350 回ほどで、検索の無料枠 5,000 回に十分収まる
 - 60 日間コミットがないと GitHub が定期実行を止めるため、45 日ごとに空コミットする
+
+### 古いデータで上書きしない
+日経平均の最新日が欠けて取れることがある（Yahoo 側の都合）。銘柄のほうが新しい日まであれば日経平均だけ取り直し、
+それでも公開中の `asof` より古ければ計算を中止する（Actions は赤になるが、公開中のものはそのまま残る）。

@@ -118,3 +118,48 @@ def download_closes(tickers: list[str], period: str = "2y",
         run(missing)
     print(f"[prices] {len(result)}/{len(tickers)} 銘柄を取得")
     return result
+
+
+# 市場カードの細かいチャート用。期間 → （取得期間, 足の長さ, 表示する営業日数）
+INTRADAY = {"1": ("5d", "5m", 1), "5": ("5d", "15m", 5), "20": ("1mo", "60m", 20)}
+
+
+def download_intraday(tickers: list[str]) -> dict[str, dict]:
+    """日経平均と TOPIX ETF の分足。期間ごとに {"t": [時刻], 銘柄: [値]} を返す。取れなければ空。
+
+    時刻は日本時間の "YYYY-MM-DDTHH:MM"。銘柄ごとに時刻がずれることがあるので、合わせて前の値で埋める。
+    """
+    out: dict[str, dict] = {}
+    for h, (period, interval, days) in INTRADAY.items():
+        try:
+            raw = yf.download(tickers, period=period, interval=interval, auto_adjust=True,
+                              group_by="column", threads=True, progress=False, prepost=False)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[intraday] {interval} を取れませんでした: {exc}")
+            continue
+        if raw is None or raw.empty:
+            continue
+        if isinstance(raw.columns, pd.MultiIndex):
+            lv0 = raw.columns.get_level_values(0)
+            closes = raw["Close"] if "Close" in lv0 else raw.xs("Close", axis=1, level=1)
+        else:
+            closes = raw[["Close"]].rename(columns={"Close": tickers[0]})
+        idx = pd.to_datetime(closes.index)
+        idx = idx.tz_localize("UTC") if idx.tz is None else idx
+        closes.index = idx.tz_convert("Asia/Tokyo")
+        closes = closes.sort_index().ffill()
+        # 直近 days 営業日分だけ残す。先頭には前の日の最後の値を 1 本置き、そこを 0% の基準にする
+        all_dates = sorted(set(closes.index.date))
+        dates = all_dates[-days:]
+        base = closes[closes.index.date == all_dates[-days - 1]].tail(1) if len(all_dates) > days else closes.iloc[:0]
+        closes = pd.concat([base, closes[[d in dates for d in closes.index.date]]])
+        closes = closes.dropna(how="all")
+        if len(closes) < 3:
+            continue
+        block: dict = {"interval": interval, "t": [t.strftime("%Y-%m-%dT%H:%M") for t in closes.index]}
+        for t in tickers:
+            if t in closes.columns and closes[t].notna().any():
+                block[t] = [None if pd.isna(v) else round(float(v), 2) for v in closes[t]]
+        out[h] = block
+        print(f"[intraday] {h} 日: {interval} × {len(closes)} 本")
+    return out

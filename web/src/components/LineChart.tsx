@@ -22,6 +22,10 @@ interface Props {
   /** 表示する営業日数 */
   days: number;
   height?: number;
+  /** 横軸の目盛りの書き方（既定は M/D）。分足のときは時刻にする */
+  fmtX?: (s: string) => string;
+  /** 触れた位置の表示（既定は 11/16(月)） */
+  fmtRead?: (s: string) => string;
   /** 横の参照線（例: 平均取得単価）。main の線と同じ基準で 0% からの位置に直して描く */
   refLine?: { price: number; label: string };
 }
@@ -46,7 +50,7 @@ function niceStep(span: number): number {
   return [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= raw) ?? raw;
 }
 
-export default function LineChart({ dates, series, days, height = 220, refLine }: Props) {
+export default function LineChart({ dates, series, days, height = 220, refLine, fmtX = mdLabel, fmtRead = dateJa }: Props) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
 
@@ -135,7 +139,7 @@ export default function LineChart({ dates, series, days, height = 220, refLine }
   return (
     <div className="chart" ref={ref}>
       <div className="chart-readout" aria-live="polite">
-        <span className="chart-date">{view[at] ? dateJa(view[at]) : ''}</span>
+        <span className="chart-date">{view[at] ? fmtRead(view[at]) : ''}</span>
         {lines.map((l) => (
           <span key={l.label} className="chart-val">
             <i className={`key key-${l.kind}`} aria-hidden />
@@ -169,7 +173,7 @@ export default function LineChart({ dates, series, days, height = 220, refLine }
             className="tick"
             textAnchor={k === 0 ? 'start' : k === 2 ? 'end' : 'middle'}
           >
-            {view[i] ? `${Number(view[i].slice(5, 7))}/${Number(view[i].slice(8, 10))}` : ''}
+            {view[i] ? fmtX(view[i]) : ''}
           </text>
         ))}
         {refV != null && (
@@ -207,3 +211,7 @@ export default function LineChart({ dates, series, days, height = 220, refLine }
 }
 
 const ORDER: Record<SeriesKind, number> = { market: 0, sector: 1, main: 2 };
+
+function mdLabel(s: string): string {
+  return `${Number(s.slice(5, 7))}/${Number(s.slice(8, 10))}`;
+}
