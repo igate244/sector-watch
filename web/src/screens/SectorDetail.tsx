@@ -6,6 +6,7 @@ import { useHeldCodes } from '../lib/useHoldings';
 import LineChart from '../components/LineChart';
 import { StockRow } from '../components/parts';
 import { Card, DecompBars, Empty, Segmented, TopBar } from '../components/ui';
+import { savedWin, saveWin } from './SectorsScreen';
 
 export type Win = '20' | '60' | '120' | '249';
 export const WINDOWS: [Win, string][] = [
@@ -16,7 +17,11 @@ export const WINDOWS: [Win, string][] = [
 ];
 
 export default function SectorDetail({ state, name, h, nav }: { state: DataState; name: string; h: Horizon; nav: Nav }) {
-  const [win, setWin] = useState<Win>('60');
+  const [win, setWinState] = useState<Win>(savedWin);
+  const setWin = (v: Win) => {
+    setWinState(v);
+    saveWin(v);
+  };
   const held = useHeldCodes();
   const d = state.data;
   const s = d?.sectors.find((x) => x.name === name);

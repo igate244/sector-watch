@@ -418,3 +418,17 @@ button.card:active { background: var(--surface2); }
 .preview-list { padding-left: 18px; margin: 6px 0; }
 .help p { margin: 0 0 8px; }
 [id^="sec-"] { scroll-margin-top: 56px; }
+
+/* セクター一覧のチャート */
+.chart-win {
+  position: sticky; top: calc(env(safe-area-inset-top) + 52px); z-index: 4;
+  display: flex; align-items: center; gap: 10px; padding: 4px 4px 8px;
+  background: color-mix(in oklab, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px);
+  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+}
+.chart-win .segmented { flex: 1; }
+.chart-win .segmented button { flex: 1; }
+.sector-open { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
+.sector-card .chart { margin-top: 6px; }
+.sector-card .chart-readout { min-height: 0; padding: 3px 8px; }
