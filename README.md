@@ -39,9 +39,10 @@
 ### 2. 銘柄リストをスプレッドシートにする
 Google ドライブに「セクター観測 銘柄リスト」を作ってある。
 
-1. スプレッドシートを開き、**ファイル → 共有 → ウェブに公開** → 「シート全体」「カンマ区切り形式（.csv）」→ 公開。出てきた URL をコピー
-2. GitHub の **Settings → Secrets and variables → Actions → Variables** に追加
-   - `WATCHLIST_CSV_URL` = いまコピーした CSV の URL
+1. スプレッドシートの共有を **「リンクを知っている全員」「閲覧者」** にする（スマホのアプリでもできる。「ウェブに公開」はスマホにない）
+2. GitHub の **Settings → Secrets and variables → Actions → Variables** に追加（設定済み）
+   - `WATCHLIST_CSV_URL` = `https://docs.google.com/spreadsheets/d/<ID>/export?format=csv`
+     （`gid=` は付けない。付けると、番号が違ったときに読めなくなる。いちばん左のシートが読まれる）
    - `WATCHLIST_EDIT_URL` = スプレッドシートの普段の URL（アプリの「スプレッドシートを開く」ボタン用）
 
 **注意**: このリストとメモ欄は公開ページに載る（URL を知っていれば誰でも見える）。保有していることなど、
