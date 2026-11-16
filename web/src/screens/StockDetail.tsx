@@ -124,7 +124,13 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
               </ul>
             )}
             <Sources list={n.sources} />
-            <p className="muted small">AI による要約。判断の前に出典を確認すること。</p>
+            {n.searched === false || !n.sources.length ? (
+              <p className="warn-text small">
+                出典がありません。検索せずに AI の知識だけで答えた可能性があるので、鵜呑みにしないこと。
+              </p>
+            ) : (
+              <p className="muted small">AI による要約。判断の前に出典を確認すること。</p>
+            )}
           </>
         ) : (
           <>

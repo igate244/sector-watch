@@ -1,0 +1,39 @@
+# セクター観測 — Claude 向けの決まりごと
+
+持ち主はスマホだけで開発している（PC は使わない前提）。Claude Code（クラウド）から頼まれて直すことが多い。
+
+## 会話
+- 返事・途中経過・コミットメッセージは**すべて日本語**
+- 説明は短く。専門用語は最低限にして、何が変わるか（画面で何が見えるか）を先に言う
+
+## 公開の仕組み（大事）
+- **main に push した瞬間に公開される**（GitHub Actions → GitHub Pages）。push 時は Gemini を呼ばず前回の判定を使い回す
+- 平日 16:30 JST に自動で計算。手動は `update` ワークフローの Run workflow
+- 型エラー・テスト失敗があると Actions が赤くなり、公開されない（壊れたものは出ない）
+- 大きめの変更はブランチ＋PR にして、持ち主が GitHub アプリでマージする。小さな修正は頼まれれば main に直接でよい
+
+## push の前に必ずやること
+```bash
+pip install -r requirements.txt
+python -m pipeline.test_analysis                 # 判定のテスト
+python -m pipeline.run --out web/public/data     # 実データで計算（キーなしなら Gemini は呼ばれない）
+cd web && npm ci && npm run build                # 型チェック込みのビルド
+```
+画面を変えたら `npm run preview`（http://localhost:4173/sector-watch/）をスマホ幅（390px）で開き、
+可能ならスクリーンショットを撮って持ち主に見せる。ライト・ダーク両方。
+
+## 守ること
+- **保有株・取引の記録は端末内（IndexedDB）だけ。** リポジトリ・latest.json・スプレッドシートに保有情報を入れない
+  （このリポジトリと公開ページは誰でも見られる）
+- Gemini の呼び出し回数を増やす変更は、費用の見込みを持ち主に伝えてから。上限は `NEWS_MAX_CALLS`（既定 16）
+- `web/src/lib/db.ts` の `version(n)` は書き換えない。スキーマ変更は新しい version を追記する
+- 色: 上昇＝赤（`--up`）、下落＝青（`--down`）。色だけに頼らず ▲▼ か ± を必ず付ける
+- チャートの線は 3 本まで、軸は 1 本。凡例と線の端のラベルを付ける
+- 判定の閾値は `pipeline/analysis.py` の先頭。変えたら `docs/DESIGN.md` の表も直す
+
+## 構成
+- `pipeline/` 計算（Python）。`analysis.py` 要因分解と判定、`news.py` Gemini＋Google 検索、`run.py` 全体
+- `web/` 画面（React + TypeScript + Vite + PWA）。`src/screens/` が各画面、`src/components/` が部品
+- `config/watchlist.csv` スプレッドシートが読めないときの予備の銘柄リスト
+- `docs/DESIGN.md` 設計書（計算式・判定条件・データの形）
+- 銘柄リストの本体は Google スプレッドシート（リポジトリ変数 `WATCHLIST_CSV_URL`）

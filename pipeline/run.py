@@ -8,7 +8,7 @@
   WATCHLIST_EDIT_URL  そのシートの編集用 URL（画面の「銘柄を編集」ボタンに使う）
   GEMINI_API_KEY      Gemini API のキー。ないときはニュースの見出しだけ集める
   GEMINI_MODEL        使うモデル（既定: gemini-3.5-flash-lite）
-  NEWS_MAX_CALLS      1 回の実行で Gemini に聞く銘柄数の上限（既定: 15）
+  NEWS_MAX_CALLS      1 回の実行で Gemini を呼ぶ回数の上限（市場概況 1＋銘柄。既定: 16）
   NEWS_MODE=reuse     Gemini を呼ばず、前回の判定を使い回す（push 時のビルド用）
   PREV_URL            前回の latest.json の URL（判定の使い回しに使う）
 """
@@ -96,8 +96,8 @@ def main() -> None:
 
     prev = load_prev(out)
     g = news.Gemini.from_env()
-    attach_news(res["stocks"], prev, asof, n225["ret"]["20"], g)
 
+    # 市場概況を先に作る（銘柄の確認で呼び出し上限を使い切らないように）
     comment = prev.get("market_comment")
     if not (comment and comment.get("asof") == asof):
         comment = None
@@ -110,6 +110,9 @@ def main() -> None:
                 f"{s['name']} {s['dec']['1']['r'] * 100:+.1f}%" for s in (secs[:2] + secs[-2:])
             )
             comment = news.market_comment(g, asof, n225["ret"]["1"], movers)
+
+
+    attach_news(res["stocks"], prev, asof, n225["ret"]["20"], g)
 
     repo = os.environ.get("GITHUB_REPOSITORY", "")
     result = {

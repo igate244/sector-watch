@@ -38,7 +38,7 @@ jobs:
           WATCHLIST_EDIT_URL: ${{ vars.WATCHLIST_EDIT_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}       # 未設定なら Google ニュースの見出しだけ
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
-          NEWS_MAX_CALLS: ${{ vars.NEWS_MAX_CALLS || '15' }}
+          NEWS_MAX_CALLS: ${{ vars.NEWS_MAX_CALLS || '16' }}
           # push のときは Gemini を呼ばず、公開中の前回の判定を使い回す
           NEWS_MODE: ${{ github.event_name == 'push' && 'reuse' || '' }}
           PREV_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/latest.json

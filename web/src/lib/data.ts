@@ -27,6 +27,8 @@ export interface News {
   summary: string;
   factors: string[];
   sources: Source[];
+  /** Gemini が実際に Google 検索したか（古い結果には無い） */
+  searched?: boolean;
 }
 
 export interface Stock {

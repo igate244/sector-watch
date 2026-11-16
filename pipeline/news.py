@@ -34,13 +34,14 @@ class Gemini:
         self.left = max_calls
         self.used = 0
         self.errors: list[str] = []
+        self.searched = False
 
     @classmethod
     def from_env(cls) -> "Gemini | None":
         key = os.environ.get("GEMINI_API_KEY", "").strip()
         if not key or os.environ.get("NEWS_MODE", "") == "reuse":
             return None
-        return cls(key, os.environ.get("GEMINI_MODEL", "").strip(), int(os.environ.get("NEWS_MAX_CALLS", "15")))
+        return cls(key, os.environ.get("GEMINI_MODEL", "").strip(), int(os.environ.get("NEWS_MAX_CALLS", "16")))
 
     def ask(self, prompt: str) -> tuple[str, list[dict]] | None:
         """検索つきで質問する。戻り値は（本文, 出典）。上限に達したか失敗したら None。"""
@@ -73,7 +74,10 @@ class Gemini:
                 self.used += 1
                 cand = resp.json()["candidates"][0]
                 text = "".join(p.get("text", "") for p in cand.get("content", {}).get("parts", []))
-                chunks = cand.get("groundingMetadata", {}).get("groundingChunks", [])
+                meta = cand.get("groundingMetadata", {}) or {}
+                chunks = meta.get("groundingChunks", []) or []
+                # 実際に Google 検索したか（検索せず知識だけで答えることがある）
+                self.searched = bool(meta.get("webSearchQueries")) or bool(chunks)
                 sources = [
                     {"title": c["web"].get("title", ""), "url": c["web"].get("uri", "")}
                     for c in chunks if "web" in c
@@ -104,7 +108,7 @@ def judge_stock(g: Gemini, st: dict, market_r20: float | None, asof: str) -> dic
     d = st["dec"]["20"]
     pct = lambda x: "不明" if x is None else f"{x * 100:+.1f}%"  # noqa: E731
     prompt = (
-        f"あなたは日本株のアナリストです。Google 検索で最新のニュースを調べて答えてください。\n"
+        f"あなたは日本株のアナリストです。必ず Google 検索を実行し、検索で見つかった記事だけを根拠に答えてください。\n"
         f"銘柄: {st['name']}（東証 {st['code']}、セクター: {st['sector']}）\n"
         f"{asof} までの 20 営業日で株価は {pct(d['r'])}。同じ期間の日経平均は {pct(market_r20)}、"
         f"同じセクターの他銘柄の平均を元に分けると、市場要因 {pct(d['m'])}・セクター要因 {pct(d['s'])}・個別要因 {pct(d['i'])}。\n"
@@ -118,6 +122,7 @@ def judge_stock(g: Gemini, st: dict, market_r20: float | None, asof: str) -> dic
     if not out:
         return None
     text, sources = out
+    searched = g.searched
     data = _json_in(text) or {}
     return {
         "by": "gemini",
@@ -126,6 +131,7 @@ def judge_stock(g: Gemini, st: dict, market_r20: float | None, asof: str) -> dic
         "summary": str(data.get("summary") or text.strip())[:200],
         "factors": [str(f)[:60] for f in (data.get("factors") or [])][:4],
         "sources": sources,
+        "searched": searched,
     }
 
 
