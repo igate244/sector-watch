@@ -22,6 +22,8 @@ interface Props {
   /** 表示する営業日数 */
   days: number;
   height?: number;
+  /** 横の参照線（例: 平均取得単価）。main の線と同じ基準で 0% からの位置に直して描く */
+  refLine?: { price: number; label: string };
 }
 
 const PAD = { top: 8, right: 64, bottom: 22, left: 40 };
@@ -44,7 +46,7 @@ function niceStep(span: number): number {
   return [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= raw) ?? raw;
 }
 
-export default function LineChart({ dates, series, days, height = 220 }: Props) {
+export default function LineChart({ dates, series, days, height = 220, refLine }: Props) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
 
@@ -63,7 +65,14 @@ export default function LineChart({ dates, series, days, height = 220 }: Props) 
     [series, start],
   );
 
-  const all = lines.flatMap((l) => l.pts.filter((v): v is number => v != null));
+  // 参照線は main の期間の始めの値で割って、ほかの線と同じ目盛りにそろえる
+  const mainBase = (() => {
+    const m = series.find((x) => x.kind === 'main');
+    return m ? (m.values.slice(start).find((v) => v != null) ?? null) : null;
+  })();
+  const refV = refLine && mainBase ? refLine.price / mainBase - 1 : null;
+
+  const all = [...lines.flatMap((l) => l.pts.filter((v): v is number => v != null)), ...(refV != null ? [refV] : [])];
   let lo = Math.min(0, ...all);
   let hi = Math.max(0, ...all);
   if (hi - lo < 0.02) {
@@ -163,6 +172,14 @@ export default function LineChart({ dates, series, days, height = 220 }: Props) 
             {view[i] ? `${Number(view[i].slice(5, 7))}/${Number(view[i].slice(8, 10))}` : ''}
           </text>
         ))}
+        {refV != null && (
+          <g>
+            <line x1={PAD.left} x2={PAD.left + iw} y1={y(refV)} y2={y(refV)} className="ref-line" />
+            <text x={PAD.left + 2} y={y(refV) - 3} className="ref-label">
+              {refLine!.label}
+            </text>
+          </g>
+        )}
         {/* 描く順: 日経（下）→ セクター → 銘柄（上） */}
         {[...lines]
           .sort((a, b) => ORDER[a.kind] - ORDER[b.kind])

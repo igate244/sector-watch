@@ -5,11 +5,20 @@ import { db } from '../lib/db';
 import { dir, signedYen, yen } from '../lib/format';
 import { decodeCsv, parseRakutenCsv, toTrade, type ParsedTrade } from '../lib/rakutenCsv';
 import { usePositions } from '../lib/useHoldings';
-import { Card, Empty, Pct, SignalBadge, TopBar } from '../components/ui';
+import { Card, Chg, Count, Empty, Pct, Segmented, SignalBadge, TopBar } from '../components/ui';
+import LineChart from '../components/LineChart';
+import type { Position } from '../lib/holdings';
+import { WINDOWS, type Win } from './SectorDetail';
+import { savedWin, saveWin, shortName } from './SectorsScreen';
 
 export default function HoldingsScreen({ state, nav }: { state: DataState; nav: Nav }) {
   const positions = usePositions();
   const [showClosed, setShowClosed] = useState(false);
+  const [win, setWin] = useState<Win>(savedWin);
+  const changeWin = (v: Win) => {
+    setWin(v);
+    saveWin(v);
+  };
   const d = state.data;
   const by = d ? stockByCode(d) : new Map();
 
@@ -59,47 +68,81 @@ export default function HoldingsScreen({ state, nav }: { state: DataState; nav: 
         </p>
       </Card>
 
-      <Card title={`保有中 ${open.length}`}>
-        {!positions ? null : !open.length ? (
+      {d && open.some((p) => by.get(p.code)) && (
+        <div className="chart-win">
+          <span className="hz-label">チャート</span>
+          <Segmented label="チャートの期間" value={win} onChange={changeWin} options={WINDOWS} />
+        </div>
+      )}
+
+      {!positions ? null : !open.length ? (
+        <Card title={<>保有中 <Count n={0} /></>}>
           <Empty>記録がありません。右上の「＋ 記録」か、下の CSV 取り込みから入れてください</Empty>
-        ) : (
-          <div className="list">
-            {open.map((p) => {
-              const s = by.get(p.code);
-              const pnl = s ? s.last * p.qty - p.cost : null;
-              return (
-                <button
-                  key={p.code || p.name}
-                  type="button"
-                  className="row"
-                  onClick={() => (s ? nav.open({ kind: 'stock', code: p.code }) : nav.open({ kind: 'trades', code: p.code, name: p.name }))}
-                >
-                  <span className="row-main">
-                    <span className="row-title">{s?.name ?? p.name}</span>
-                    <span className="row-sub muted small">
-                      {p.code || 'コード不明'} · {p.qty.toLocaleString('ja-JP')}株 · 平均 {yen(p.avg, 0)}円
-                      {s && ` → ${s.last.toLocaleString('ja-JP')}円`}
-                    </span>
-                  </span>
-                  <span className="row-side">
-                    {pnl != null ? (
-                      <>
-                        <strong className="pct" data-dir={pnl >= 0 ? 'up' : 'down'}>
-                          {signedYen(pnl)}
-                        </strong>
-                        <Pct v={s!.last / p.avg - 1} />
-                      </>
-                    ) : (
-                      <span className="muted small">株価なし</span>
-                    )}
-                    {s && <SignalBadge label={s.signal.label} />}
-                  </span>
+        </Card>
+      ) : (
+        <>
+          <p className="note pad">
+            チャートは期間の始めを 0% にそろえた銘柄（黒）・セクター平均（橙）・日経平均（破線）。緑の点線が平均取得単価。
+          </p>
+          {open.map((p) => {
+            const s = by.get(p.code);
+            if (!s || !d) return <NoPriceRow key={p.code || p.name} p={p} nav={nav} />;
+            const pnl = s.last * p.qty - p.cost;
+            const r = p.avg ? s.last / p.avg - 1 : null;
+            const sector = d.sectors.find((x) => x.name === s.sector);
+            const openIt = () => nav.open({ kind: 'stock', code: p.code });
+            return (
+              <section key={p.code} className="card hold-card">
+                <button type="button" className="sector-open" onClick={openIt}>
+                  <div className="sector-head">
+                    <div style={{ minWidth: 0 }}>
+                      <h3 className="row-title">{s.name}</h3>
+                      <div className="row-sub">
+                        <span className="num">{s.code}</span>
+                        <span>{s.sector}</span>
+                        <SignalBadge label={s.signal.label} />
+                      </div>
+                    </div>
+                    <div className="hold-pnl">
+                      <span className="yen" data-dir={dir(r)}>
+                        {signedYen(pnl)}円
+                      </span>
+                      <Chg v={r} />
+                    </div>
+                  </div>
+                  <div className="hold-meta">
+                    <div>
+                      <div className="k">株数</div>
+                      <div className="v">{p.qty.toLocaleString('ja-JP')}</div>
+                    </div>
+                    <div>
+                      <div className="k">平均取得</div>
+                      <div className="v">¥{yen(p.avg, 0)}</div>
+                    </div>
+                    <div>
+                      <div className="k">現在値・前日比</div>
+                      <div className="v">
+                        ¥{s.last.toLocaleString('ja-JP')} <Pct v={s.dec['1']?.r} />
+                      </div>
+                    </div>
+                  </div>
                 </button>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+                <LineChart
+                  dates={d.dates}
+                  days={Number(win)}
+                  height={160}
+                  refLine={{ price: p.avg, label: '取得' }}
+                  series={[
+                    { label: shortName(s.name), values: s.series, kind: 'main' },
+                    ...(sector ? [{ label: `${s.sector}平均`, values: sector.series, kind: 'sector' as const }] : []),
+                    { label: '日経平均', values: d.market.n225.series, kind: 'market' },
+                  ]}
+                />
+              </section>
+            );
+          })}
+        </>
+      )}
 
       <CsvImport />
 
@@ -134,6 +177,24 @@ export default function HoldingsScreen({ state, nav }: { state: DataState; nav: 
         </Card>
       )}
     </>
+  );
+}
+
+function NoPriceRow({ p, nav }: { p: Position; nav: Nav }) {
+  return (
+    <section className="card">
+      <button type="button" className="row" style={{ border: 0, padding: 0 }} onClick={() => nav.open({ kind: 'trades', code: p.code, name: p.name })}>
+        <span className="row-main">
+          <span className="row-title">{p.name}</span>
+          <span className="row-sub">
+            <span className="num">{p.code || 'コード不明'}</span>
+            <span className="num">{p.qty.toLocaleString('ja-JP')}株</span>
+            <span className="num">平均 ¥{yen(p.avg, 0)}</span>
+          </span>
+        </span>
+        <span className="row-side muted small">株価なし（銘柄リスト外）</span>
+      </button>
+    </section>
   );
 }
 
