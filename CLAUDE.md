@@ -19,6 +19,14 @@ python -m pipeline.test_analysis                 # 判定のテスト
 python -m pipeline.run --out web/public/data     # 実データで計算（キーなしなら Gemini は呼ばれない）
 cd web && npm ci && npm run build                # 型チェック込みのビルド
 ```
+クラウド環境から Yahoo Finance や JPX に届かず `pipeline.run` が失敗するときは、公開中のデータを借りて画面だけ確認する:
+```bash
+mkdir -p web/public/data
+curl -sL https://igate244.github.io/sector-watch/data/latest.json -o web/public/data/latest.json
+curl -sL https://igate244.github.io/sector-watch/data/codes.json  -o web/public/data/codes.json
+```
+（`web/public/data/` は .gitignore 済み。コミットしない）
+
 画面を変えたら `npm run preview`（http://localhost:4173/sector-watch/）をスマホ幅（390px）で開き、
 可能ならスクリーンショットを撮って持ち主に見せる。ライト・ダーク両方。
 
