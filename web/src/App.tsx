@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLatest, type Horizon } from './lib/data';
 import { autoBackup } from './lib/drive';
 import { HorizonPicker, Icon } from './components/ui';
@@ -49,7 +49,26 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
+  // 重ねた画面は一番上から開き、戻ったら元の位置に戻す
+  const scrolls = useRef<number[]>([]);
+  useEffect(() => {
+    // ブラウザの自動のスクロール復元は切る（戻るボタンのとき位置がずれる）
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
+  }, []);
+  const prevDepth = useRef(0);
+  useLayoutEffect(() => {
+    const depth = stack.length;
+    if (depth > prevDepth.current) window.scrollTo(0, 0);
+    else if (depth < prevDepth.current) {
+      let y = 0;
+      while (scrolls.current.length > depth) y = scrolls.current.pop() ?? 0;
+      window.scrollTo(0, y);
+    }
+    prevDepth.current = depth;
+  }, [stack.length]);
+
   const open = useCallback((o: Overlay) => {
+    scrolls.current.push(window.scrollY);
     setStack((s) => [...s, o]);
     window.history.pushState({ [MARK]: true }, '');
   }, []);
@@ -66,6 +85,7 @@ export default function App() {
     // 重ねた画面を閉じてからタブを切り替える（履歴も積んだ分だけ戻す）
     if (stack.length) {
       const n = stack.length;
+      scrolls.current = [];
       setStack([]);
       window.history.go(-n);
     }
