@@ -61,6 +61,14 @@ class Gemini:
                 if resp.status_code == 429 and attempt == 0:
                     time.sleep(30)
                     continue
+                if resp.status_code in (400, 401, 402, 403, 404):
+                    # キー・支払い・モデル名の問題は何度呼んでも同じなので、この回はもう呼ばない
+                    self.left = 0
+                    try:
+                        detail = resp.json().get("error", {}).get("message", "")
+                    except ValueError:
+                        detail = resp.text
+                    raise RuntimeError(f"HTTP {resp.status_code}: {detail[:300]}")
                 resp.raise_for_status()
                 self.used += 1
                 cand = resp.json()["candidates"][0]
@@ -75,8 +83,8 @@ class Gemini:
                 msg = str(exc)
                 if self.key in msg:
                     msg = msg.replace(self.key, "***")
-                self.errors.append(msg[:200])
-                print(f"[gemini] 失敗: {msg[:200]}")
+                self.errors.append(msg[:300])
+                print(f"[gemini] 失敗: {msg[:300]}")
                 return None
         return None
 
