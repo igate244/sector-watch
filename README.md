@@ -5,7 +5,7 @@
 
 - 平日 16:30 ごろ、GitHub Actions が自動で計算して公開する（PC 不要・サーバー代 0 円）
 - 下げている銘柄は、Gemini に Google 検索させて「個別の悪材料があるか」を確認する（Google AI Pro の特典クレジットで払う）
-- 追う銘柄は Google スプレッドシートで、スマホから編集する
+- 追う銘柄は `config/watchlist.csv`。チャットで Claude に頼めば直して反映する
 - 保有株の記録は端末の中だけ（外には出さない）。楽天証券の取引履歴 CSV をそのまま取り込める
 
 設計の考え方・計算式・判定の条件は [docs/DESIGN.md](docs/DESIGN.md)。
@@ -14,7 +14,7 @@
 
 ```
 【平日 16:30 自動】GitHub Actions
-   スプレッドシートから銘柄リストを読む
+   銘柄リスト（config/watchlist.csv）を読む
    → 株価（yfinance）を取る → 日経平均・セクター・個別に分解 → 買い候補／要注意を判定
    → 下げている銘柄は悪材料、初動候補は好材料を Gemini＋Google 検索で確認（最大 29 件）
    → 結果（data/latest.json）と画面を GitHub Pages に公開
@@ -34,16 +34,12 @@
 4. **Actions** タブ → `update` → **Run workflow**。数分で緑になれば
    `https://igate244.github.io/sector-watch/` が開ける
 
-ここまでで動く（銘柄はリポジトリ内の予備の一覧、ニュースは見出しだけ）。
+ここまでで動く（ニュースは見出しだけ）。
 
-### 2. 銘柄リストをスプレッドシートにする
-Google ドライブに「セクター観測 銘柄リスト」を作ってある。
-
-1. スプレッドシートの共有を **「リンクを知っている全員」「閲覧者」** にする（スマホのアプリでもできる。「ウェブに公開」はスマホにない）
-2. GitHub の **Settings → Secrets and variables → Actions → Variables** に追加（設定済み）
-   - `WATCHLIST_CSV_URL` = `https://docs.google.com/spreadsheets/d/<ID>/export?format=csv`
-     （`gid=` は付けない。付けると、番号が違ったときに読めなくなる。いちばん左のシートが読まれる）
-   - `WATCHLIST_EDIT_URL` = スプレッドシートの普段の URL（アプリの「スプレッドシートを開く」ボタン用）
+### 2. 銘柄リスト
+`config/watchlist.csv` が本体（2026-11 に Google スプレッドシートから移した。Claude から書き換えられないため）。
+変えたいときはチャットで Claude に頼む。自分で直すなら GitHub アプリでこのファイルを編集して commit すると、
+すぐ再計算されて公開される（そのときは Gemini を呼ばず、前回の判定を使い回す）。
 
 **注意**: このリストとメモ欄は公開ページに載る（URL を知っていれば誰でも見える）。保有していることなど、
 知られたくないことはメモに書かない。保有はアプリの「保有」タブ（端末の中だけ）で管理する。
@@ -80,7 +76,7 @@ reading-log と同じ OAuth クライアント ID を使い回せる。
 
 | やりたいこと | やりかた |
 |---|---|
-| 追う銘柄・セクターを変える | スプレッドシートアプリで編集 → 次の計算から反映 |
+| 追う銘柄・セクターを変える | Claude に頼む（または GitHub で `config/watchlist.csv` を直して commit）→ すぐ反映 |
 | すぐ計算し直す | アプリの設定 →「今すぐ再計算」→ Run workflow |
 | 判定の厳しさを変える | GitHub で `pipeline/analysis.py` の上の方の値を直して commit（push で自動公開） |
 | 画面を直す | GitHub で `web/src/` を直して commit。型エラーがあれば Actions が赤くなり、公開されない |
@@ -103,12 +99,12 @@ cd web && npm install && npm run build && npm run preview
 ```
 pipeline/           毎日の計算（Python）
   run.py            全体の流れ・latest.json の書き出し
-  watchlist.py      銘柄リスト（スプレッドシート / 予備の CSV）
+  watchlist.py      銘柄リスト（config/watchlist.csv）
   prices.py         株価（yfinance）と銘柄名の一覧（JPX）
   analysis.py       要因分解と判定 ← 判定の閾値はここの先頭
   news.py           Gemini＋Google 検索 / Google ニュース RSS
   test_analysis.py  合成データでのテスト
-config/watchlist.csv   スプレッドシートが読めないときの予備
+config/watchlist.csv   追う銘柄の一覧（本体）
 config/tickers.csv     JPX が読めないときの銘柄名の予備
 web/                画面（React + TypeScript + Vite + PWA）
 docs/DESIGN.md      設計書

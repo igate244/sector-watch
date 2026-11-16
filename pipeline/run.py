@@ -4,8 +4,6 @@
   python -m pipeline.run --out site/data
 
 環境変数（すべて任意）:
-  WATCHLIST_CSV_URL   銘柄リスト（Google スプレッドシートを「ウェブに公開」した CSV）
-  WATCHLIST_EDIT_URL  そのシートの編集用 URL（画面の「銘柄を編集」ボタンに使う）
   GEMINI_API_KEY      Gemini API のキー。ないときはニュースの見出しだけ集める
   GEMINI_MODEL        使うモデル（既定: gemini-3.5-flash-lite）
   NEWS_MAX_CALLS      1 回の実行で Gemini を呼ぶ回数の上限（市場概況 1＋銘柄。既定: 30）
@@ -129,7 +127,8 @@ def main() -> None:
         "market_comment": comment,
         "watchlist": {
             "source": source,
-            "edit_url": os.environ.get("WATCHLIST_EDIT_URL", "").strip() or None,
+            # 画面の「GitHub で開く」ボタン用
+            "edit_url": f"https://github.com/{repo}/blob/main/config/watchlist.csv" if repo else None,
             "notes": notes,
         },
         "run": {

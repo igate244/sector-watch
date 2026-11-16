@@ -85,7 +85,7 @@ export interface Latest {
   sectors: Sector[];
   stocks: Stock[];
   market_comment: { asof: string; text: string; sources: Source[] } | null;
-  watchlist: { source: 'sheet' | 'fallback'; edit_url: string | null; notes: string[] };
+  watchlist: { source: 'repo' | 'sheet' | 'fallback'; edit_url: string | null; notes: string[] };
   run: { workflow_url: string | null; gemini_calls: number; gemini_errors: string[]; elapsed_sec: number };
 }
 

@@ -34,8 +34,6 @@ jobs:
 
       - name: 株価の取得と計算
         env:
-          WATCHLIST_CSV_URL: ${{ vars.WATCHLIST_CSV_URL }}
-          WATCHLIST_EDIT_URL: ${{ vars.WATCHLIST_EDIT_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}       # 未設定なら Google ニュースの見出しだけ
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           NEWS_MAX_CALLS: ${{ vars.NEWS_MAX_CALLS || '30' }}

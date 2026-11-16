@@ -12,18 +12,17 @@ export default function SettingsScreen({ state }: { state: DataState }) {
 
       <Card title="銘柄リスト">
         <p className="small">
-          読み込み元: <strong>{d?.watchlist.source === 'sheet' ? 'Google スプレッドシート' : '予備の一覧（リポジトリ内）'}</strong>
+          置き場所: <strong>GitHub の config/watchlist.csv</strong>
           <br />
           <span className="muted">
-            {d ? `${d.sectors.length} セクター・${d.stocks.length} 銘柄` : ''}。書き換えると、次の計算（平日 16:30 ごろ、または下の「今すぐ再計算」）から反映される。
+            {d ? `${d.sectors.length} セクター・${d.stocks.length} 銘柄` : ''}。変えたいときは Claude に「◯◯を足して／外して」と頼めば直して反映する。
+            自分で直すなら GitHub アプリでこのファイルを編集して commit（すぐ再計算される）。
           </span>
         </p>
-        {d?.watchlist.edit_url ? (
+        {d?.watchlist.edit_url && (
           <a className="btn" href={d.watchlist.edit_url} target="_blank" rel="noreferrer">
-            スプレッドシートを開く
+            GitHub で開く
           </a>
-        ) : (
-          <p className="muted small">スプレッドシートがまだ繋がっていません（README の手順を参照）。</p>
         )}
         {!!d?.watchlist.notes.length && (
           <ul className="warn-text small">

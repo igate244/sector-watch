@@ -1,9 +1,8 @@
 """
 追いかける銘柄の一覧を読む。
 
-優先順:
-  1. 環境変数 WATCHLIST_CSV_URL（Google スプレッドシートを「ウェブに公開」した CSV の URL）
-  2. config/watchlist.csv（シートが読めないときの予備）
+本体は config/watchlist.csv（2026-11 に Google スプレッドシートから移した。
+チャットで頼めば Claude がこのファイルを直して push する。GitHub アプリから直接編集してもよい）
 
 表の形（1 行目は見出し。列の順番は自由。足りない列は空でよい）:
   セクター, コード, 銘柄名, メモ
@@ -13,15 +12,12 @@ from __future__ import annotations
 
 import csv
 import io
-import os
 import re
 import unicodedata
 from pathlib import Path
 
-import requests
-
 ROOT = Path(__file__).resolve().parent.parent
-FALLBACK = ROOT / "config" / "watchlist.csv"
+WATCHLIST = ROOT / "config" / "watchlist.csv"
 
 # 見出しの揺れを吸収する（日本語・英語どちらでも書ける）
 HEADERS = {
@@ -73,22 +69,7 @@ def parse(text: str) -> tuple[list[dict], list[str]]:
 
 
 def load() -> tuple[list[dict], list[str], str]:
-    """戻り値は（銘柄一覧, 注意書き, 読み込み元 'sheet' | 'fallback'）。"""
-    url = os.environ.get("WATCHLIST_CSV_URL", "").strip()
-    notes: list[str] = []
-    if url:
-        try:
-            resp = requests.get(url, timeout=30)
-            resp.raise_for_status()
-            resp.encoding = "utf-8"
-            rows, errors = parse(resp.text)
-            if rows:
-                print(f"[watchlist] スプレッドシートから {len(rows)} 銘柄")
-                return rows, errors, "sheet"
-            notes.append("スプレッドシートに銘柄が 1 つもなかったので、予備の一覧を使いました")
-        except Exception as exc:  # noqa: BLE001
-            print(f"[watchlist] スプレッドシートを読めませんでした: {exc}")
-            notes.append("スプレッドシートを読めなかったので、予備の一覧を使いました")
-    rows, errors = parse(FALLBACK.read_text(encoding="utf-8-sig"))
-    print(f"[watchlist] 予備の一覧から {len(rows)} 銘柄")
-    return rows, notes + errors, "fallback"
+    """戻り値は（銘柄一覧, 注意書き, 読み込み元 'repo'）。"""
+    rows, errors = parse(WATCHLIST.read_text(encoding="utf-8-sig"))
+    print(f"[watchlist] config/watchlist.csv から {len(rows)} 銘柄")
+    return rows, errors, "repo"

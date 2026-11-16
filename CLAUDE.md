@@ -31,7 +31,7 @@ curl -sL https://igate244.github.io/sector-watch/data/codes.json  -o web/public/
 可能ならスクリーンショットを撮って持ち主に見せる。ライト・ダーク両方。
 
 ## 守ること
-- **保有株・取引の記録は端末内（IndexedDB）だけ。** リポジトリ・latest.json・スプレッドシートに保有情報を入れない
+- **保有株・取引の記録は端末内（IndexedDB）だけ。** リポジトリ・latest.json・銘柄リストに保有情報を入れない
   （このリポジトリと公開ページは誰でも見られる）
 - Gemini の呼び出し回数を増やす変更は、費用の見込みを持ち主に伝えてから。上限は `NEWS_MAX_CALLS`（既定 30）
 - `web/src/lib/db.ts` の `version(n)` は書き換えない。スキーマ変更は新しい version を追記する
@@ -42,6 +42,5 @@ curl -sL https://igate244.github.io/sector-watch/data/codes.json  -o web/public/
 ## 構成
 - `pipeline/` 計算（Python）。`analysis.py` 要因分解と判定、`news.py` Gemini＋Google 検索、`run.py` 全体
 - `web/` 画面（React + TypeScript + Vite + PWA）。`src/screens/` が各画面、`src/components/` が部品
-- `config/watchlist.csv` スプレッドシートが読めないときの予備の銘柄リスト
 - `docs/DESIGN.md` 設計書（計算式・判定条件・データの形）
-- 銘柄リストの本体は Google スプレッドシート（リポジトリ変数 `WATCHLIST_CSV_URL`）
+- 銘柄リストの本体は `config/watchlist.csv`（列: セクター, コード, 銘柄名, メモ）。頼まれたら直して main に push してよい（push で即再計算・公開）。同じコードは 1 つのセクターにしか入れられない
