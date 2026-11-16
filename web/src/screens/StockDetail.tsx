@@ -4,7 +4,7 @@ import { HORIZONS, type DataState, type Horizon } from '../lib/data';
 import { HORIZON_LABEL, signed, signedYen, yen } from '../lib/format';
 import { usePositions } from '../lib/useHoldings';
 import LineChart from '../components/LineChart';
-import { Card, DecompBars, Empty, HorizonPicker, Pct, Segmented, SignalBadge, TopBar } from '../components/ui';
+import { Card, Chg, DecompBars, Empty, HorizonPicker, Pct, Segmented, SignalBadge, TopBar } from '../components/ui';
 import { Sources } from './TodayScreen';
 import { WINDOWS, type Win } from './SectorDetail';
 
@@ -36,13 +36,50 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
       <Card>
         <div className="stock-head">
           <div>
-            <div className="muted small">
-              {s.code} · {s.sector}
+            <div className="meta">
+              <span className="num">{s.code}</span>
+              <span>{s.sector}</span>
             </div>
-            <div className="big">{s.last.toLocaleString('ja-JP')}円</div>
-            <Pct v={s.dec['1']?.r} strong /> <span className="muted small">前日比</span>
+            <div className="price-line">
+              <span className="big">¥{s.last.toLocaleString('ja-JP')}</span>
+              <Chg v={s.dec['1']?.r} />
+            </div>
+            <div className="note" style={{ margin: 0 }}>
+              前日比 · {s.asof.slice(5).replace('-', '/')} 終値
+            </div>
           </div>
           <SignalBadge label={s.signal.label} />
+        </div>
+        <div className="kpi-grid">
+          <div>
+            <div className="k">20日 騰落</div>
+            <div className="v">
+              <Pct v={s.dec['20']?.r} />
+            </div>
+            <div className="h">うち個別 {signed(s.dec['20']?.i ?? null)}</div>
+          </div>
+          <div>
+            <div className="k">60日高値から</div>
+            <div className="v">
+              <Pct v={s.dd60} />
+            </div>
+          </div>
+          <div>
+            <div className="k">1年レンジ位置</div>
+            <div className="v">{s.pos1y == null ? '—' : `${Math.round(s.pos1y * 100)}%`}</div>
+            {s.pos1y != null && (
+              <div className="range" aria-hidden>
+                <i style={{ left: `${Math.max(0, Math.min(100, s.pos1y * 100))}%` }} />
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="k">β · 下げの珍しさ</div>
+            <div className="v">
+              {s.beta} · {s.z20 ?? '—'}
+            </div>
+            <div className="h">珍しさ −2 以下＝かなり珍しい</div>
+          </div>
         </div>
         {s.signal.reason && <p className="reason">{s.signal.reason}</p>}
         {s.memo && <p className="muted small">メモ: {s.memo}</p>}
@@ -83,27 +120,6 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
             ))}
           </tbody>
         </table>
-      </Card>
-
-      <Card title="指標">
-        <dl className="stats">
-          <dt>
-            β<span className="dt-note">日経平均への感応度（直近 1 年）</span>
-          </dt>
-          <dd>{s.beta}</dd>
-          <dt>60 日高値から</dt>
-          <dd>
-            <Pct v={s.dd60} />
-          </dd>
-          <dt>
-            1 年の値幅の中の位置<span className="dt-note">0%＝1 年の安値、100%＝高値</span>
-          </dt>
-          <dd>{s.pos1y == null ? '—' : `${Math.round(s.pos1y * 100)}%`}</dd>
-          <dt>
-            20 日の下げの珍しさ<span className="dt-note">普段の値動きの何倍か。−2 以下はかなり珍しい</span>
-          </dt>
-          <dd>{s.z20 ?? '—'}</dd>
-        </dl>
       </Card>
 
       <Card title={n?.by === 'gemini' ? 'ニュースの確認（Gemini＋Google 検索）' : 'ニュース'}>

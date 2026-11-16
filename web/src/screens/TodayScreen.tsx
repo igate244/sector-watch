@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import type { Nav } from '../App';
-import type { DataState, Horizon, Stock } from '../lib/data';
+import { HORIZONS, type DataState, type Horizon, type MarketBlock, type Stock } from '../lib/data';
 import { HORIZON_LABEL } from '../lib/format';
 import { useHeldCodes } from '../lib/useHoldings';
 import { Freshness, HeatTable, Loading, StockRow } from '../components/parts';
-import { Card, Empty, Pct, TopBar } from '../components/ui';
+import { Card, Count, Empty, Pct, Sparkline, TopBar } from '../components/ui';
 
 const FIRST = 6;
 
@@ -20,20 +20,18 @@ export default function TodayScreen({ state, h, nav }: { state: DataState; h: Ho
       <Loading state={state} />
       {d && (
         <>
-          <Card title="市場">
+          <Card>
             <div className="market-grid">
-              <div>
-                <div className="muted small">日経平均</div>
-                <div className="big">{d.market.n225.last?.toLocaleString('ja-JP')}</div>
-                <Pct v={d.market.n225.ret[h]} strong /> <span className="muted small">{HORIZON_LABEL[h]}</span>
-              </div>
-              {d.market.topix && (
-                <div>
-                  <div className="muted small">TOPIX（1306 ETF）</div>
-                  <div className="big">{d.market.topix.last?.toLocaleString('ja-JP')}</div>
-                  <Pct v={d.market.topix.ret[h]} strong /> <span className="muted small">{HORIZON_LABEL[h]}</span>
+              <MarketKpi m={d.market.n225} label="日経平均" h={h} />
+              {d.market.topix && <MarketKpi m={d.market.topix} label="TOPIX（1306）" h={h} />}
+            </div>
+            <div className="hz-strip" aria-label="日経平均の期間別騰落率">
+              {HORIZONS.map((x) => (
+                <div key={x} data-on={x === h}>
+                  <span className="k">{HORIZON_LABEL[x]}</span>
+                  <Pct v={d.market.n225.ret[x]} />
                 </div>
-              )}
+              ))}
             </div>
             {d.market_comment && (
               <div className="comment">
@@ -43,10 +41,26 @@ export default function TodayScreen({ state, h, nav }: { state: DataState; h: Ho
             )}
           </Card>
 
+          <div className="summary">
+            <button type="button" data-kind="buy" onClick={() => jump('buy')}>
+              <span className="k">買い候補</span>
+              <span className="v">{count(d.stocks, 'buy')}</span>
+            </button>
+            <button type="button" data-kind="caution" onClick={() => jump('caution')}>
+              <span className="k">要注意</span>
+              <span className="v">{count(d.stocks, 'caution')}</span>
+            </button>
+            <button type="button" onClick={() => jump('heat')}>
+              <span className="k">監視銘柄</span>
+              <span className="v">{d.stocks.length}</span>
+            </button>
+          </div>
+
           <HeldToday stocks={d.stocks.filter((s) => held.has(s.code))} h={h} nav={nav} />
 
-          <Card title={`買い候補 ${count(d.stocks, 'buy')}`}>
-            <p className="muted small">20 日の下げの大半が、日経平均とセクターにつられたもの。珍しい下げの順。</p>
+          <div id="sec-buy" />
+          <Card title={<>買い候補 <Count n={count(d.stocks, 'buy')} kind="buy" /></>} action={<span className="note" style={{ margin: 0 }}>20日・珍しい下げ順</span>}>
+            <p className="note">下げの大半が日経平均とセクター（業種）につられたもの。</p>
             {(() => {
               const list = sorted(d.stocks, 'buy');
               if (!list.length) return <Empty>今日は買い候補がありません</Empty>;
@@ -67,7 +81,8 @@ export default function TodayScreen({ state, h, nav }: { state: DataState; h: Ho
             })()}
           </Card>
 
-          <Card title={`要注意（個別要因） ${count(d.stocks, 'caution')}`}>
+          <div id="sec-caution" />
+          <Card title={<>要注意 <Count n={count(d.stocks, 'caution')} kind="caution" /></>} action={<span className="note" style={{ margin: 0 }}>個別要因の下げ</span>}>
             {count(d.stocks, 'caution') ? (
               <div className="list">
                 {sorted(d.stocks, 'caution').map((s) => (
@@ -79,6 +94,7 @@ export default function TodayScreen({ state, h, nav }: { state: DataState; h: Ho
             )}
           </Card>
 
+          <div id="sec-heat" />
           <Card title="セクターの温度">
             <HeatTable d={d} onOpen={(name) => nav.open({ kind: 'sector', name })} />
           </Card>
@@ -88,10 +104,28 @@ export default function TodayScreen({ state, h, nav }: { state: DataState; h: Ho
   );
 }
 
+function jump(id: string) {
+  document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function MarketKpi({ m, label, h }: { m: MarketBlock; label: string; h: Horizon }) {
+  return (
+    <div className="kpi">
+      <div className="kpi-label">
+        <span>{label}</span>
+        <span>{HORIZON_LABEL[h]}</span>
+      </div>
+      <div className="kpi-val">{m.last?.toLocaleString('ja-JP', { maximumFractionDigits: 2 })}</div>
+      <Pct v={m.ret[h]} />
+      <Sparkline values={m.series} days={h === '60' ? 120 : 60} />
+    </div>
+  );
+}
+
 function HeldToday({ stocks, h, nav }: { stocks: Stock[]; h: Horizon; nav: Nav }) {
   if (!stocks.length) return null;
   return (
-    <Card title="保有株">
+    <Card title={<>保有株 <Count n={stocks.length} /></>}>
       <div className="list">
         {stocks.map((s) => (
           <StockRow key={s.code} s={s} h={h} showSector onOpen={() => nav.open({ kind: 'stock', code: s.code })} />

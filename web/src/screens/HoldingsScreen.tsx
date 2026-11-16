@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { Nav } from '../App';
 import { loadCodes, stockByCode, type DataState } from '../lib/data';
 import { db } from '../lib/db';
-import { signedYen, yen } from '../lib/format';
+import { dir, signedYen, yen } from '../lib/format';
 import { decodeCsv, parseRakutenCsv, toTrade, type ParsedTrade } from '../lib/rakutenCsv';
 import { usePositions } from '../lib/useHoldings';
 import { Card, Empty, Pct, SignalBadge, TopBar } from '../components/ui';
@@ -46,7 +46,7 @@ export default function HoldingsScreen({ state, nav }: { state: DataState; nav: 
           <div>
             <div className="muted small">評価損益</div>
             <div className="big">
-              <span className="pct" data-dir={value - cost >= 0 ? 'up' : 'down'}>
+              <span className="pct" data-dir={dir(cost ? value / cost - 1 : 0)}>
                 {signedYen(value - cost)}
               </span>
             </div>
