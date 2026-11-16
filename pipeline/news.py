@@ -103,33 +103,67 @@ def _json_in(text: str) -> dict | None:
         return None
 
 
+# 判定の指示を変えたら上げる。番号が違う過去の判定は使い回さず、やり直す
+NEWS_VERSION = 2
+
+
+def _parse_judgment(text: str) -> dict:
+    """「判定: / 要約: / 材料:」の形の文章を読む。崩れていても読めるところだけ拾う。"""
+    out: dict = {"bad_news": None, "summary": "", "factors": []}
+    m = re.search(r"判定[:：]\s*(.+)", text)
+    if m:
+        v = m.group(1)
+        if "なし" in v or "無し" in v:
+            out["bad_news"] = False
+        elif "あり" in v or "有り" in v:
+            out["bad_news"] = True
+    m = re.search(r"要約[:：]\s*(.+)", text)
+    if m:
+        out["summary"] = m.group(1).strip()
+    m = re.search(r"材料[:：]\s*(.*)", text, re.S)
+    if m:
+        items = re.findall(r"^[\s　]*[・\-\*•]\s*(.+)$", m.group(1), re.M)
+        out["factors"] = [i.strip() for i in items if i.strip() and "なし" != i.strip()]
+    if not out["summary"]:
+        out["summary"] = re.sub(r"\s+", " ", text).strip()
+    return out
+
+
 def judge_stock(g: Gemini, st: dict, market_r20: float | None, asof: str) -> dict | None:
-    """下げている銘柄について、個別の悪材料があるかを Gemini に調べさせる。"""
+    """下げている銘柄について、個別の悪材料があるかを Gemini に調べさせる。
+
+    「JSON だけ出力」と指示すると、Gemini が検索を省いて知識だけで答えることがあった
+    （出典ゼロ）。検索してくれる市場概況と同じく、文章で答えさせて形だけ決める。
+    """
     d = st["dec"]["20"]
     pct = lambda x: "不明" if x is None else f"{x * 100:+.1f}%"  # noqa: E731
     prompt = (
-        f"あなたは日本株のアナリストです。必ず Google 検索を実行し、検索で見つかった記事だけを根拠に答えてください。\n"
-        f"銘柄: {st['name']}（東証 {st['code']}、セクター: {st['sector']}）\n"
-        f"{asof} までの 20 営業日で株価は {pct(d['r'])}。同じ期間の日経平均は {pct(market_r20)}、"
-        f"同じセクターの他銘柄の平均を元に分けると、市場要因 {pct(d['m'])}・セクター要因 {pct(d['s'])}・個別要因 {pct(d['i'])}。\n"
+        f"Google 検索で「{st['name']} 株価」「{st['name']} 決算」などを調べて答えてください。\n"
+        f"{st['name']}（東証 {st['code']}、{st['sector']}）の株価は {asof} までの 20 営業日で {pct(d['r'])}。"
+        f"同じ期間の日経平均は {pct(market_r20)}。手元の計算では、市場要因 {pct(d['m'])}・"
+        f"セクター要因 {pct(d['s'])}・個別要因 {pct(d['i'])}。\n"
         "直近 3 週間に、この会社固有の悪材料（決算の悪化・業績予想の下方修正・不祥事・格下げ・"
-        "公募増資・主要顧客の喪失・訴訟など）があったかを調べてください。\n"
-        "次の JSON だけを出力してください。説明文は不要です。\n"
-        '{"bad_news": true か false, "summary": "下げの理由の要約（80 字以内）", '
-        '"factors": ["材料を短く", "..."]}'
+        "公募増資・主要顧客の喪失・訴訟など）があったかを、検索で見つかった記事を根拠に判断してください。"
+        "記事で確認できないことは「なし」とします。\n"
+        "次の形で、日本語で答えてください。前置きは不要です。\n"
+        "判定: 悪材料あり または 悪材料なし\n"
+        "要約: 下げの理由（80 字以内）\n"
+        "材料:\n・材料を短く（1〜3 個。なければ「・なし」）"
     )
     out = g.ask(prompt)
     if not out:
         return None
     text, sources = out
     searched = g.searched
-    data = _json_in(text) or {}
+    data = _parse_judgment(text)
     return {
         "by": "gemini",
+        "v": NEWS_VERSION,
         "asof": asof,
-        "bad_news": bool(data.get("bad_news")) if "bad_news" in data else None,
-        "summary": str(data.get("summary") or text.strip())[:200],
-        "factors": [str(f)[:60] for f in (data.get("factors") or [])][:4],
+        # 検索していない回答の「悪材料あり」は信用しない（判定は不明扱い）
+        "bad_news": data["bad_news"] if searched else None,
+        "summary": data["summary"][:200],
+        "factors": [f[:60] for f in data["factors"]][:4],
         "sources": sources,
         "searched": searched,
     }

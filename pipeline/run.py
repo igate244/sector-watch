@@ -50,7 +50,7 @@ def attach_news(stocks: list[dict], prev: dict, asof: str, market_r20: float | N
     targets.sort(key=lambda s: (ORDER[s["signal"]["label"]], s.get("z20") or 0))
     for st in targets:
         old = prev_news.get(st["code"])
-        if old and old.get("by") == "gemini" and old.get("asof") == asof:
+        if old and old.get("by") == "gemini" and old.get("asof") == asof and old.get("v") == news.NEWS_VERSION:
             st["news"] = old
         else:
             st["news"] = news.judge_stock(g, st, market_r20, asof) if g else None
