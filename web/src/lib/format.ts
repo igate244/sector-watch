@@ -5,6 +5,7 @@ export const HORIZON_LABEL: Record<Horizon, string> = { '1': '1日', '5': '5日'
 export const SIGNAL_LABEL: Record<SignalLabel, string> = {
   buy: '買い候補',
   caution: '要注意',
+  rise: '初動候補',
   watch: '様子見',
   none: '',
 };

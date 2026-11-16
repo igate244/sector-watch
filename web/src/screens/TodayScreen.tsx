@@ -50,9 +50,9 @@ export default function TodayScreen({ state, h, nav }: { state: DataState; h: Ho
               <span className="k">要注意</span>
               <span className="v">{count(d.stocks, 'caution')}</span>
             </button>
-            <button type="button" onClick={() => jump('heat')}>
-              <span className="k">監視銘柄</span>
-              <span className="v">{d.stocks.length}</span>
+            <button type="button" data-kind="rise" onClick={() => jump('rise')}>
+              <span className="k">初動候補</span>
+              <span className="v">{count(d.stocks, 'rise')}</span>
             </button>
           </div>
 
@@ -79,6 +79,23 @@ export default function TodayScreen({ state, h, nav }: { state: DataState; h: Ho
                 </>
               );
             })()}
+          </Card>
+
+          <div id="sec-rise" />
+          <Card title={<>初動候補 <Count n={count(d.stocks, 'rise')} kind="rise" /></>} action={<span className="note" style={{ margin: 0 }}>上がり始めの形</span>}>
+            <p className="note">値幅が縮んだもみ合いのあと、60 日高値を抜けた銘柄。だましも多いので、抜けた高値を割ったら撤退が前提。</p>
+            {count(d.stocks, 'rise') ? (
+              <div className="list">
+                {d.stocks
+                  .filter((s) => s.signal.label === 'rise')
+                  .sort((a, b) => (b.rise?.score ?? 0) - (a.rise?.score ?? 0) || (b.rise?.vol_ratio ?? 0) - (a.rise?.vol_ratio ?? 0))
+                  .map((s) => (
+                    <StockRow key={s.code} s={s} h="20" showSector held={held.has(s.code)} onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
+                  ))}
+              </div>
+            ) : (
+              <Empty>今日は初動候補がありません</Empty>
+            )}
           </Card>
 
           <div id="sec-caution" />

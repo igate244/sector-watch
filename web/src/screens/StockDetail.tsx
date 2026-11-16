@@ -122,14 +122,16 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
         </table>
       </Card>
 
-      <Card title={n?.by === 'gemini' ? 'ニュースの確認（Gemini＋Google 検索）' : 'ニュース'}>
+      <Card title={n?.by === 'gemini' ? (n.kind === 'rise' ? '上昇の材料（Gemini＋Google 検索）' : 'ニュースの確認（Gemini＋Google 検索）') : 'ニュース'}>
         {!n ? (
-          <Empty>下げていない銘柄は確認していません</Empty>
+          <Empty>下げていない・初動でもない銘柄は確認していません</Empty>
         ) : n.by === 'gemini' ? (
           <>
             <p>
               {n.bad_news === true && <strong className="warn-text">個別の悪材料あり。</strong>}
               {n.bad_news === false && <strong>目立った個別の悪材料なし。</strong>}
+              {n.good_news === true && <strong className="pct" data-dir="up">好材料あり。</strong>}
+              {n.good_news === false && <strong>はっきりした好材料は見つからず。</strong>}
               {n.summary}
             </p>
             {n.factors.length > 0 && (

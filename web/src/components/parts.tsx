@@ -69,7 +69,17 @@ export function StockRow({
           <span className="num">¥{s.last.toLocaleString('ja-JP')}</span>
           <SignalBadge label={s.signal.label} />
         </span>
-        {h !== '1' && <DecompInline d={d} />}
+        {s.signal.label === 'rise' && s.rise ? (
+          <span className="hits">
+            {s.rise.hits.map((x, i) => (
+              <span key={x} className={i < 2 ? 'hit-main' : ''}>
+                {x}
+              </span>
+            ))}
+          </span>
+        ) : (
+          h !== '1' && <DecompInline d={d} />
+        )}
       </span>
       <span className="row-side">
         <Chg v={d?.r} />

@@ -41,7 +41,7 @@ class Gemini:
         key = os.environ.get("GEMINI_API_KEY", "").strip()
         if not key or os.environ.get("NEWS_MODE", "") == "reuse":
             return None
-        return cls(key, os.environ.get("GEMINI_MODEL", "").strip(), int(os.environ.get("NEWS_MAX_CALLS", "16")))
+        return cls(key, os.environ.get("GEMINI_MODEL", "").strip(), int(os.environ.get("NEWS_MAX_CALLS", "30")))
 
     def ask(self, prompt: str) -> tuple[str, list[dict]] | None:
         """検索つきで質問する。戻り値は（本文, 出典）。上限に達したか失敗したら None。"""
@@ -159,9 +159,47 @@ def judge_stock(g: Gemini, st: dict, market_r20: float | None, asof: str) -> dic
     return {
         "by": "gemini",
         "v": NEWS_VERSION,
+        "kind": "drop",
         "asof": asof,
         # 検索していない回答の「悪材料あり」は信用しない（判定は不明扱い）
         "bad_news": data["bad_news"] if searched else None,
+        "summary": data["summary"][:200],
+        "factors": [f[:60] for f in data["factors"]][:4],
+        "sources": sources,
+        "searched": searched,
+    }
+
+
+def judge_rise(g: Gemini, st: dict, market_r20: float | None, asof: str) -> dict | None:
+    """初動候補（高値圏で上がり始めた銘柄）について、上昇のきっかけになる好材料があるかを調べる。"""
+    d = st["dec"]["20"]
+    pct = lambda x: "不明" if x is None else f"{x * 100:+.1f}%"  # noqa: E731
+    hits = "・".join((st.get("rise") or {}).get("hits", []))
+    prompt = (
+        f"Google 検索で「{st['name']} 株価」「{st['name']} 決算」「{st['name']} 上方修正」などを調べて答えてください。\n"
+        f"{st['name']}（東証 {st['code']}、{st['sector']}）の株価は {asof} までの 20 営業日で {pct(d['r'] if d else None)}"
+        f"（日経平均は {pct(market_r20)}）で、60 日高値圏にある。手元の計算で当てはまった条件: {hits}。\n"
+        "直近 1 ヶ月に、この会社固有の好材料（決算の上振れ・業績予想の上方修正・大型受注・新製品・"
+        "提携・自社株買い・増配・格上げなど）があったかを、検索で見つかった記事を根拠に判断してください。"
+        "記事で確認できないことは「なし」とします。あわせて、上昇に水を差しそうな悪材料があれば材料に書いてください。\n"
+        "次の形で、日本語で答えてください。前置きは不要です。\n"
+        "判定: 好材料あり または 好材料なし\n"
+        "要約: 上がっている理由（80 字以内）\n"
+        "材料:\n・材料を短く（1〜3 個。なければ「・なし」）"
+    )
+    out = g.ask(prompt)
+    if not out:
+        return None
+    text, sources = out
+    searched = g.searched
+    data = _parse_judgment(text)
+    return {
+        "by": "gemini",
+        "v": NEWS_VERSION,
+        "kind": "rise",
+        "asof": asof,
+        "bad_news": None,
+        "good_news": data["bad_news"] if searched else None,  # 「好材料あり」なら True
         "summary": data["summary"][:200],
         "factors": [f[:60] for f in data["factors"]][:4],
         "sources": sources,
