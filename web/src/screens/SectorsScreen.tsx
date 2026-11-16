@@ -106,6 +106,11 @@ export default function SectorsScreen({ state, h, nav }: { state: DataState; h: 
                                       ◎
                                     </span>
                                   )}
+                                  {st.signal.label === 'rise' && (
+                                    <span className="sig sig-rise" aria-label="初動候補">
+                                      ↗
+                                    </span>
+                                  )}
                                   {st.signal.label === 'caution' && (
                                     <span className="sig sig-caution" aria-label="要注意">
                                       ⚠

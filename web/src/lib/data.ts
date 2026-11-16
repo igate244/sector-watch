@@ -12,7 +12,7 @@ export interface Dec {
   i?: number;
 }
 
-export type SignalLabel = 'buy' | 'caution' | 'watch' | 'none';
+export type SignalLabel = 'buy' | 'caution' | 'rise' | 'watch' | 'none';
 
 export interface Source {
   title: string;
@@ -29,6 +29,19 @@ export interface News {
   sources: Source[];
   /** Gemini が実際に Google 検索したか（古い結果には無い） */
   searched?: boolean;
+  /** drop＝下げの悪材料を確認、rise＝上昇の好材料を確認（古い結果には無い＝drop） */
+  kind?: 'drop' | 'rise';
+  /** 初動候補の確認で「好材料あり」なら true */
+  good_news?: boolean | null;
+}
+
+/** 初動候補の条件（pipeline/analysis.py の rise_check） */
+export interface Rise {
+  score: number;
+  hits: string[];
+  near_high: number | null;
+  ext50: number | null;
+  vol_ratio: number | null;
 }
 
 export interface Stock {
@@ -44,6 +57,7 @@ export interface Stock {
   pos1y: number | null;
   z20: number | null;
   signal: { label: SignalLabel; reason: string };
+  rise?: Rise | null;
   news?: News | null;
   series: (number | null)[];
 }

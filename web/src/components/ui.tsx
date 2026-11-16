@@ -12,7 +12,7 @@ export function Pct({ v, digits = 1, strong }: { v: number | null | undefined; d
   );
 }
 
-const ICON: Record<SignalLabel, string> = { buy: '◎', caution: '⚠', watch: '…', none: '' };
+const ICON: Record<SignalLabel, string> = { buy: '◎', caution: '⚠', rise: '↗', watch: '…', none: '' };
 
 export function SignalBadge({ label }: { label: SignalLabel }) {
   if (label === 'none') return null;

@@ -8,7 +8,7 @@
   WATCHLIST_EDIT_URL  そのシートの編集用 URL（画面の「銘柄を編集」ボタンに使う）
   GEMINI_API_KEY      Gemini API のキー。ないときはニュースの見出しだけ集める
   GEMINI_MODEL        使うモデル（既定: gemini-3.5-flash-lite）
-  NEWS_MAX_CALLS      1 回の実行で Gemini を呼ぶ回数の上限（市場概況 1＋銘柄。既定: 16）
+  NEWS_MAX_CALLS      1 回の実行で Gemini を呼ぶ回数の上限（市場概況 1＋銘柄。既定: 30）
   NEWS_MODE=reuse     Gemini を呼ばず、前回の判定を使い回す（push 時のビルド用）
   PREV_URL            前回の latest.json の URL（判定の使い回しに使う）
 """
@@ -26,7 +26,7 @@ import requests
 
 from . import analysis, news, prices, watchlist
 
-ORDER = {"buy": 0, "caution": 1, "watch": 2, "none": 3}
+ORDER = {"buy": 0, "caution": 1, "rise": 2, "watch": 3, "none": 4}
 
 
 def load_prev(out: Path) -> dict:
@@ -49,11 +49,14 @@ def attach_news(stocks: list[dict], prev: dict, asof: str, market_r20: float | N
     targets = [s for s in stocks if s["signal"]["label"] != "none"]
     targets.sort(key=lambda s: (ORDER[s["signal"]["label"]], s.get("z20") or 0))
     for st in targets:
+        kind = "rise" if st["signal"]["label"] == "rise" else "drop"
         old = prev_news.get(st["code"])
-        if old and old.get("by") == "gemini" and old.get("asof") == asof and old.get("v") == news.NEWS_VERSION:
+        if (old and old.get("by") == "gemini" and old.get("asof") == asof
+                and old.get("v") == news.NEWS_VERSION and old.get("kind", "drop") == kind):
             st["news"] = old
         else:
-            st["news"] = news.judge_stock(g, st, market_r20, asof) if g else None
+            judge = news.judge_rise if kind == "rise" else news.judge_stock
+            st["news"] = judge(g, st, market_r20, asof) if g else None
             if st["news"] is None:
                 st["news"] = news.headlines(st["name"])
         n = st.get("news")
@@ -79,7 +82,8 @@ def main() -> None:
             r["name"] = names.get(r["code"], r["code"])
 
     tickers = [r["code"] + ".T" for r in rows] + [prices.N225, prices.TOPIX_ETF]
-    closes = prices.download_closes(tickers)
+    volumes: dict = {}
+    closes = prices.download_closes(tickers, volumes=volumes)
     if prices.N225 not in closes:
         raise SystemExit("日経平均が取れなかったので中止します")
     market = closes.pop(prices.N225)
@@ -88,7 +92,7 @@ def main() -> None:
         if r["code"] + ".T" not in closes:
             notes.append(f"{r['code']} {r['name']} の株価が取れませんでした（上場廃止・コード違いの可能性）")
 
-    res = analysis.analyze(rows, closes, market)
+    res = analysis.analyze(rows, closes, market, volumes)
     idx = market.index[-250:]
     asof = market.index[-1].strftime("%Y-%m-%d")
     n225 = analysis.market_block("日経平均", market, market.index)
@@ -141,7 +145,7 @@ def main() -> None:
 
     count = {k: sum(1 for s in res["stocks"] if s["signal"]["label"] == k) for k in ORDER}
     print(f"[done] {asof} の終値 / {len(res['stocks'])} 銘柄・{len(res['sectors'])} セクター / "
-          f"買い候補 {count['buy']}・要注意 {count['caution']}・様子見 {count['watch']} / "
+          f"買い候補 {count['buy']}・要注意 {count['caution']}・初動 {count['rise']}・様子見 {count['watch']} / "
           f"Gemini {result['run']['gemini_calls']} 回 / {result['run']['elapsed_sec']} 秒")
     for n in notes:
         print(f"[note] {n}")

@@ -33,7 +33,7 @@ curl -sL https://igate244.github.io/sector-watch/data/codes.json  -o web/public/
 ## 守ること
 - **保有株・取引の記録は端末内（IndexedDB）だけ。** リポジトリ・latest.json・スプレッドシートに保有情報を入れない
   （このリポジトリと公開ページは誰でも見られる）
-- Gemini の呼び出し回数を増やす変更は、費用の見込みを持ち主に伝えてから。上限は `NEWS_MAX_CALLS`（既定 16）
+- Gemini の呼び出し回数を増やす変更は、費用の見込みを持ち主に伝えてから。上限は `NEWS_MAX_CALLS`（既定 30）
 - `web/src/lib/db.ts` の `version(n)` は書き換えない。スキーマ変更は新しい version を追記する
 - 色: 上昇＝赤（`--up`）、下落＝青（`--down`）。色だけに頼らず ▲▼ か ± を必ず付ける
 - チャートの線は 3 本まで、軸は 1 本。凡例と線の端のラベルを付ける

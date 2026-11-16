@@ -26,6 +26,17 @@ IND_FLOOR_FOR_BUY = -0.04   # 買い候補: 個別要因がこれより浅い
 IND_CAUTION = -0.05         # 要注意: 個別要因がこれ以下で、市場＋セクター要因より大きい
 WATCH_R5 = -0.04            # 様子見: 5 日でこれ以下
 
+# 初動候補（上がり始め）。docs/DESIGN.md の「7. 初動候補」を参照
+RISE_NEAR_HIGH = -0.03      # 必須: 60 日高値からこれ以内（高値圏）
+RISE_MAX_EXT = 0.15         # 必須: 50 日線からの上離れがこれ以下（上がりすぎていない）
+RISE_MAX_R60 = 0.50         # 必須: 60 日でこれ以上は「もう走った後」とみなす
+RISE_BREAK_DAYS = 3         # 加点: 直近この日数のうちに 60 日高値を更新
+RISE_SQUEEZE_PCTL = 0.25    # 加点: 直近 10 日のバンド幅の最小が、過去 120 日の下位 25% 以内
+RISE_VOL_RATIO = 1.5        # 加点: 直近 3 日の出来高が 50 日平均のこの倍以上
+# 判定: 「60 日高値を更新」と「直前に値幅が収縮」の両方（VCP に近い形）。出来高・日経比・セクターは参考として表示。
+# 公開中の 60 銘柄・直近約 100 営業日で試したところ、5 条件のうち 3 つ以上、のような数で決めるより
+# この 2 つの組み合わせのほうが、その後の日経比が良かった（10 日後の中央値 +1.3%、全体は +0.6%）。
+
 
 def _f(x: float | None, nd: int = 4) -> float | None:
     if x is None or (isinstance(x, float) and (math.isnan(x) or math.isinf(x))):
@@ -80,7 +91,7 @@ def pct(x: float | None) -> str:
 
 
 def classify(d20: dict | None, d5: dict | None, dd60: float | None) -> tuple[str, str]:
-    """戻り値は（判定, 理由）。判定は buy / caution / watch / none。"""
+    """戻り値は（判定, 理由）。判定は buy / caution / watch / none（初動候補 rise は analyze で別に付ける）。"""
     if not d20:
         return "none", ""
     r, m, s, i = d20["r"], d20["m"], d20["s"], d20["i"]
@@ -101,7 +112,60 @@ def classify(d20: dict | None, d5: dict | None, dd60: float | None) -> tuple[str
     return "watch", f"{head}。主因がはっきりしない"
 
 
-def analyze(watch: list[dict], closes: dict[str, pd.Series], market: pd.Series) -> dict:
+def rise_check(s: pd.Series, vol: pd.Series | None, rel20: float | None,
+               sector_rel20: float | None) -> dict | None:
+    """上がり始め（初動）の条件を調べる。必須条件を満たさなければ None。
+
+    s: 終値（日経平均の営業日にそろえたもの）、vol: 出来高（なければ None）
+    rel20: 20 日の騰落率 − 日経平均、sector_rel20: セクター平均の 20 日 − 日経平均
+    """
+    v = s.dropna()
+    if len(v) < 130:
+        return None
+    last = float(v.iloc[-1])
+    hi60 = float(v.iloc[-60:].max())
+    ma50 = float(v.iloc[-50:].mean())
+    ma200 = float(v.iloc[-200:].mean()) if len(v) >= 200 else None
+    r60 = last / float(v.iloc[-61]) - 1 if len(v) > 60 else None
+    near = last / hi60 - 1
+    ext = last / ma50 - 1
+    # 必須: 高値圏・上昇トレンド・まだ走りすぎていない
+    if near < RISE_NEAR_HIGH or last <= ma50 or (ma200 is not None and ma50 <= ma200):
+        return None
+    if ext > RISE_MAX_EXT or (r60 is not None and r60 > RISE_MAX_R60):
+        return None
+
+    hits: list[str] = []
+    # 1. 60 日高値の更新（直近数日のうち、その日までの 60 日の最高値を超えた日がある）
+    prev_hi = v.shift(1).rolling(60).max()
+    if (v.iloc[-RISE_BREAK_DAYS:] > prev_hi.iloc[-RISE_BREAK_DAYS:]).any():
+        hits.append("60日高値を更新")
+    # 2. 値幅の収縮（ボリンジャーバンド幅が過去 120 日の中で狭かった）
+    ma20 = v.rolling(20).mean()
+    bw = (4 * v.rolling(20).std() / ma20).dropna().iloc[-120:]
+    if len(bw) >= 60 and float(bw.iloc[-11:-1].min()) <= float(bw.quantile(RISE_SQUEEZE_PCTL)):
+        hits.append("直前に値幅が収縮")
+    # 3. 出来高の急増
+    vr = None
+    if vol is not None:
+        vv = vol.reindex(v.index).dropna()
+        vv = vv[vv > 0]
+        if len(vv) >= 53:
+            base = float(vv.iloc[-53:-3].mean())
+            vr = float(vv.iloc[-3:].mean()) / base if base > 0 else None
+            if vr is not None and vr >= RISE_VOL_RATIO:
+                hits.append(f"出来高 {vr:.1f} 倍")
+    # 4. 日経平均より強い
+    if rel20 is not None and rel20 > 0:
+        hits.append("日経平均より強い")
+    # 5. セクターも強い
+    if sector_rel20 is not None and sector_rel20 > 0:
+        hits.append("セクターも強い")
+    return {"score": len(hits), "hits": hits, "near_high": _f(near), "ext50": _f(ext), "vol_ratio": _f(vr, 2)}
+
+
+def analyze(watch: list[dict], closes: dict[str, pd.Series], market: pd.Series,
+            volumes: dict[str, pd.Series] | None = None) -> dict:
     """銘柄ごと・セクターごとの指標を計算する。"""
     tickers = [w["code"] + ".T" for w in watch if w["code"] + ".T" in closes]
     px = align({t: closes[t] for t in tickers}, market)
@@ -114,6 +178,12 @@ def analyze(watch: list[dict], closes: dict[str, pd.Series], market: pd.Series) 
             sectors.setdefault(w["sector"], []).append(w["code"] + ".T")
 
     betas = {t: beta(rets[t], mret) for t in px.columns}
+    rm20 = period_return(market, 20)
+    # セクター平均の 20 日（日経平均との差）。初動の「セクターも強い」に使う
+    sector_rel: dict[str, float | None] = {}
+    for name, members in sectors.items():
+        r = compound(rets[members].mean(axis=1, skipna=True), 20)
+        sector_rel[name] = None if r is None or rm20 is None else r - rm20
     pr = {(t, h): period_return(px[t], h) for t in px.columns for h in HORIZONS}
 
     stocks: list[dict] = []
@@ -146,11 +216,21 @@ def analyze(watch: list[dict], closes: dict[str, pd.Series], market: pd.Series) 
         r20 = dec["20"]["r"] if dec["20"] else None
         z20 = r20 / (vol * math.sqrt(20)) if (r20 is not None and vol and vol > 0) else None
         label, reason = classify(dec["20"], dec["5"], dd60)
+        rise = None
+        if label == "none":
+            rel20 = None if r20 is None or rm20 is None else r20 - rm20
+            rise = rise_check(s, (volumes or {}).get(t), rel20, sector_rel.get(w["sector"]))
+            if rise and {"60日高値を更新", "直前に値幅が収縮"} <= set(rise["hits"]):
+                label = "rise"
+                reason = "もみ合いで値幅が縮んだあと、60 日高値を抜けた。" + "・".join(rise["hits"][2:] or ["ほかの条件は該当なし"])
+            else:
+                rise = None
         stocks.append({
             "code": w["code"], "name": w["name"], "sector": w["sector"], "memo": w["memo"],
             "last": _f(last, 2), "asof": valid.index[-1].strftime("%Y-%m-%d"),
             "dec": dec, "beta": _f(b, 2), "dd60": _f(dd60), "pos1y": _f(pos1y, 3), "z20": _f(z20, 2),
             "signal": {"label": label, "reason": reason},
+            "rise": rise,
             "series": [_f(v, 2) for v in s.iloc[-250:]],
         })
 

@@ -57,8 +57,10 @@ def _drop_glitches(s: pd.Series) -> pd.Series:
     return s.loc[s.index >= bad[bad].index[-1]]
 
 
-def download_closes(tickers: list[str], period: str = "2y") -> dict[str, pd.Series]:
-    """終値（分割・配当調整済み）をまとめて取る。取れなかった銘柄は 1 回だけ取り直す。"""
+def download_closes(tickers: list[str], period: str = "2y",
+                    volumes: dict[str, pd.Series] | None = None) -> dict[str, pd.Series]:
+    """終値（分割・配当調整済み）をまとめて取る。取れなかった銘柄は 1 回だけ取り直す。
+    volumes に dict を渡すと、出来高もそこに入れる（初動の判定に使う）。"""
     result: dict[str, pd.Series] = {}
 
     def run(batch: list[str]) -> None:
@@ -80,6 +82,15 @@ def download_closes(tickers: list[str], period: str = "2y") -> dict[str, pd.Seri
             closes = raw["Close"] if "Close" in lv0 else raw.xs("Close", axis=1, level=1)
         else:
             closes = raw[["Close"]].rename(columns={"Close": batch[0]})
+        vols = None
+        if volumes is not None:
+            try:
+                if isinstance(raw.columns, pd.MultiIndex):
+                    vols = raw["Volume"] if "Volume" in lv0 else raw.xs("Volume", axis=1, level=1)
+                else:
+                    vols = raw[["Volume"]].rename(columns={"Volume": batch[0]})
+            except KeyError:
+                vols = None
         for t in closes.columns:
             s = closes[t].dropna()
             s = s[s > 0]
@@ -91,6 +102,13 @@ def download_closes(tickers: list[str], period: str = "2y") -> dict[str, pd.Seri
                 idx = idx.tz_localize(None)
             s.index = idx.normalize()
             result[str(t)] = s.astype(float)
+            if vols is not None and t in vols.columns:
+                v = vols[t].dropna()
+                vi = pd.to_datetime(v.index)
+                if vi.tz is not None:
+                    vi = vi.tz_localize(None)
+                v.index = vi.normalize()
+                volumes[str(t)] = v.astype(float)
 
     run(tickers)
     missing = [t for t in tickers if t not in result]
