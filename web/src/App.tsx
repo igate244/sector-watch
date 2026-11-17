@@ -147,7 +147,7 @@ export default function App() {
   };
 
   const top = stack[stack.length - 1];
-  const showHorizon = !top ? tab === 'today' || tab === 'sectors' : top.kind === 'sector';
+  const showHorizon = !top ? tab === 'today' : top.kind === 'sector';
 
   let body;
   if (top?.kind === 'sector') body = <SectorDetail state={state} name={top.name} h={h} nav={nav} />;
@@ -157,7 +157,7 @@ export default function App() {
   else if (top?.kind === 'settings') body = <SettingsScreen state={state} nav={nav} />;
   else if (tab === 'today') body = <TodayScreen state={state} h={h} nav={nav} />;
   else if (tab === 'signals') body = <SignalsScreen state={state} nav={nav} kind={sig} onKind={changeSig} />;
-  else if (tab === 'sectors') body = <SectorsScreen state={state} h={h} nav={nav} />;
+  else if (tab === 'sectors') body = <SectorsScreen state={state} nav={nav} />;
   else body = <HoldingsScreen state={state} nav={nav} />;
 
   return (
