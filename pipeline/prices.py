@@ -121,10 +121,10 @@ def download_closes(tickers: list[str], period: str = "2y",
 
 
 # 市場カードの細かいチャート用。期間 → （取得期間, 足の長さ, 表示する営業日数）
-INTRADAY = {"1": ("5d", "5m", 1), "5": ("5d", "15m", 5), "20": ("1mo", "60m", 20)}
+INTRADAY = {"1": ("5d", "5m", 1), "5": ("1mo", "15m", 5), "20": ("3mo", "60m", 20)}
 
 
-def download_intraday(tickers: list[str]) -> dict[str, dict]:
+def download_intraday(tickers: list[str], until: str | None = None) -> dict[str, dict]:
     """日経平均と TOPIX ETF の分足。期間ごとに {"t": [時刻], 銘柄: [値]} を返す。取れなければ空。
 
     時刻は日本時間の "YYYY-MM-DDTHH:MM"。銘柄ごとに時刻がずれることがあるので、合わせて前の値で埋める。
@@ -148,6 +148,8 @@ def download_intraday(tickers: list[str]) -> dict[str, dict]:
         idx = idx.tz_localize("UTC") if idx.tz is None else idx
         closes.index = idx.tz_convert("Asia/Tokyo")
         closes = closes.sort_index().ffill()
+        if until:  # 日足の最新日（asof）までにそろえる。場中の途中の値は出さない
+            closes = closes[[str(d) <= until for d in closes.index.date]]
         # 直近 days 営業日分だけ残す。先頭には前の日の最後の値を 1 本置き、そこを 0% の基準にする
         all_dates = sorted(set(closes.index.date))
         dates = all_dates[-days:]

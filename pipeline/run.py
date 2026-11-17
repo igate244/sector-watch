@@ -20,6 +20,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+import pandas as pd
 import requests
 
 from . import analysis, news, prices, watchlist
@@ -84,6 +85,14 @@ def main() -> None:
     closes = prices.download_closes(tickers, volumes=volumes)
     if prices.N225 not in closes:
         raise SystemExit("日経平均が取れなかったので中止します")
+    # 場中（大引け 15:30 の少し後まで）に動いたときは、今日の途中の値を「終値」として出さないように今日の分を外す
+    now = pd.Timestamp.now(tz="Asia/Tokyo")
+    today = pd.Timestamp(now.date())
+    cut = today if now.hour * 60 + now.minute < 15 * 60 + 45 else None
+    if cut is not None:
+        closes = {t: s[s.index < cut] for t, s in closes.items()}
+        volumes = {t: s[s.index < cut] for t, s in volumes.items()}
+        print(f"[prices] 場中なので {today:%Y-%m-%d} の途中の値は使いません")
     market = closes.pop(prices.N225)
     topix = closes.pop(prices.TOPIX_ETF, None)
 
@@ -92,11 +101,16 @@ def main() -> None:
     if market.index[-1] < latest:
         print(f"[prices] 日経平均が {market.index[-1]:%Y-%m-%d} までしかないので取り直します（銘柄は {latest:%Y-%m-%d} まで）")
         again = prices.download_closes([prices.N225]).get(prices.N225)
+        if again is not None and cut is not None:
+            again = again[again.index < cut]
         if again is not None and again.index[-1] >= latest:
             market = again
     prev = load_prev(out)
     prev_asof = prev.get("asof", "")
-    if prev_asof and market.index[-1].strftime("%Y-%m-%d") < prev_asof:
+    # 公開中のものが場中に作られた（＝途中の値）なら、それより古くなっても上書きしてよい
+    gen = str(prev.get("generated_at", ""))
+    prev_partial = gen[:10] == prev_asof and gen[11:16] < "15:45"
+    if prev_asof and not prev_partial and market.index[-1].strftime("%Y-%m-%d") < prev_asof:
         # 古いデータで新しい結果を上書きしない（ここで止めれば、公開中のものがそのまま残る）
         raise SystemExit(
             f"日経平均の最新日 {market.index[-1]:%Y-%m-%d} が公開中の {prev_asof} より古いので中止します"
@@ -114,7 +128,7 @@ def main() -> None:
     # 市場カードのチャート用の分足（1 日＝5 分足、5 日＝15 分足、20 日＝60 分足）。取れなくても続ける
     intraday = {}
     try:
-        for h, b in prices.download_intraday([prices.N225, prices.TOPIX_ETF]).items():
+        for h, b in prices.download_intraday([prices.N225, prices.TOPIX_ETF], until=asof).items():
             intraday[h] = {"interval": b["interval"], "t": b["t"],
                            "n225": b.get(prices.N225), "topix": b.get(prices.TOPIX_ETF)}
     except Exception as exc:  # noqa: BLE001
