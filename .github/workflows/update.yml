@@ -3,10 +3,11 @@ name: update
 
 on:
   schedule:
-    # 平日 16:41 と 18:13（日本時間）。GitHub は混む時刻（毎時 0・30 分）の予約を遅らせたり飛ばしたりするので、半端な分にして 2 回。
-    # 2 回目は予備: 1 回目で Gemini の確認が済んでいれば呼ばない（費用は増えない）
-    - cron: "41 7 * * 1-5"
-    - cron: "13 9 * * 1-5"
+    # 平日 3 回（日本時間）。GitHub は混む時刻（毎時 0・30 分）の予約を遅らせたり飛ばしたりするので半端な分にする
+    - cron: "43 2 * * 1-5"    # 11:43 昼: 前場の途中経過（Gemini はひとこと 1 回）
+    - cron: "41 7 * * 1-5"    # 16:41 夕方: 終値で計算（Gemini なし）
+    - cron: "13 10 * * 1-5"   # 19:13 夜: ニュース確認とひとこと（大引け後の発表が出そろってから）
+    - cron: "37 11 * * 1-5"   # 20:37 夜の予備: 19:13 で確認済みなら Gemini は呼ばない
   push:
     branches: [main]         # 画面やロジックを直したら、そのまま公開し直す（Gemini は呼ばない）
   workflow_dispatch:         # スマホの GitHub アプリから「Run workflow」で手動実行もできる
@@ -43,6 +44,7 @@ jobs:
           # push のときは Gemini を呼ばず、公開中の前回の判定を使い回す
           NEWS_MODE: ${{ github.event_name == 'push' && 'reuse' || '' }}
           NEWS_FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
+          RUN_MODE: ${{ github.event.schedule == '43 2 * * 1-5' && 'midday' || github.event.schedule == '41 7 * * 1-5' && 'close' || 'news' }}
           PREV_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/latest.json
         run: python -m pipeline.run --out web/public/data
 

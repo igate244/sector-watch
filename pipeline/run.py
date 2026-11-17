@@ -9,6 +9,8 @@
   NEWS_MAX_CALLS      1 回の実行で Gemini を呼ぶ回数の上限（市場概況 1＋銘柄。既定: 30）
   NEWS_MODE=reuse     Gemini を呼ばず、前回の判定を使い回す（push 時のビルド用）
   NEWS_FORCE=1        同じ日に確認済みでも Gemini を呼ぶ（手動の Run workflow）
+  RUN_MODE            予約実行の種類。midday＝昼（前場の途中経過・Gemini はひとことだけ）、
+                      close＝夕方（終値・Gemini なし）、news または空＝夜（ニュース確認とひとこと）
   PREV_URL            前回の latest.json の URL（判定の使い回しに使う）
 """
 
@@ -132,7 +134,14 @@ def main() -> None:
     # 場中（大引け 15:30 の少し後まで）に動いたときは、今日の途中の値を「終値」として出さないように今日の分を外す
     now = pd.Timestamp.now(tz="Asia/Tokyo")
     today = pd.Timestamp(now.date())
-    cut = today if now.hour * 60 + now.minute < 15 * 60 + 45 else None
+    mode = os.environ.get("RUN_MODE", "").strip() or "news"
+    if os.environ.get("NEWS_MODE") == "reuse" and now.hour * 60 + now.minute < 15 * 60 + 45:
+        # 昼の回のあと、大引け前に push したときは、前場の途中経過のまま作り直す（前日の終値に戻さない）
+        early = load_prev(out)
+        if early.get("session") == "midday" and early.get("asof") == now.strftime("%Y-%m-%d"):
+            mode = "midday"
+    # 昼の回は前場の途中の値をそのまま使う（画面では「前場・途中」と出す）。それ以外は場中なら今日の分を外す
+    cut = None if mode == "midday" else (today if now.hour * 60 + now.minute < 15 * 60 + 45 else None)
     if cut is not None:
         closes = {t: s[s.index < cut] for t, s in closes.items()}
         volumes = {t: s[s.index < cut] for t, s in volumes.items()}
@@ -184,15 +193,23 @@ def main() -> None:
     except Exception as exc:  # noqa: BLE001
         print(f"[intraday] 失敗: {exc}")
 
+    session = "midday" if mode == "midday" and asof == today.strftime("%Y-%m-%d") else "close"
     g = news.Gemini.from_env()
-    # 予約の 2 回目（予備）: 同じ日の Gemini 確認がもう済んでいれば呼ばない（手動の Run workflow は NEWS_FORCE=1 で呼ぶ）
-    if g and prev.get("news_asof") == asof and not os.environ.get("NEWS_FORCE"):
+    if mode == "close":
+        g = None  # 夕方は終値の計算だけ。ニュースは夜の回で（大引け後の発表が出そろってから）
+    # 夜の予備の回: 同じ日の Gemini 確認がもう済んでいれば呼ばない（手動の Run workflow は NEWS_FORCE=1 で呼ぶ）
+    if g and mode == "news" and prev.get("news_asof") == asof and not os.environ.get("NEWS_FORCE"):
         print(f"[news] {asof} の Gemini 確認は済んでいるので、今回は呼びません")
         g = None
+    print(f"[mode] {mode}（{'前場の途中経過' if session == 'midday' else '終値'}）")
 
     # 市場概況を先に作る（銘柄の確認で呼び出し上限を使い切らないように）
     comment = prev.get("market_comment")
-    if not (comment and comment.get("asof") == asof):
+    # 同じ日の同じ時間帯（前場／終値）のひとことがあれば使う。夜の回は前場のひとことを書き直す
+    fresh = comment and comment.get("asof") == asof and comment.get("session", "close") == session
+    if mode == "close" and comment and comment.get("asof") == asof:
+        fresh = True  # 夕方は昼のひとことを夜まで残す
+    if not fresh:
         comment = None
         if g:
             secs = sorted(
@@ -202,10 +219,11 @@ def main() -> None:
             movers = "、".join(
                 f"{s['name']} {s['dec']['1']['r'] * 100:+.1f}%" for s in (secs[:2] + secs[-2:])
             )
-            comment = news.market_comment(g, asof, n225["ret"]["1"], movers)
+            comment = news.market_comment(g, asof, n225["ret"]["1"], movers, midday=session == "midday")
 
 
-    attach_news(res["stocks"], prev, asof, n225["ret"]["20"], g)
+    # 銘柄ごとのニュース確認は夜の回だけ（昼・夕方は前回の結果を使う）
+    attach_news(res["stocks"], prev, asof, n225["ret"]["20"], g if mode == "news" else None)
 
     # 決算発表予定日と大きな予定（取れなくても続ける）
     today = datetime.now(news.JST).date()
@@ -228,7 +246,9 @@ def main() -> None:
         "stocks": res["stocks"],
         "events": schedule,
         # Gemini で確認した日。予備の予約実行で二重に呼ばないための印
-        "news_asof": asof if (g and g.used) else prev.get("news_asof"),
+        "news_asof": asof if (g and g.used and mode == "news") else prev.get("news_asof"),
+        # 前場の途中経過（midday）か、終値（close）か
+        "session": session,
         "market_comment": comment,
         "watchlist": {
             "source": source,
@@ -249,7 +269,7 @@ def main() -> None:
     (out / "codes.json").write_text(json.dumps(codes, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     count = {k: sum(1 for s in res["stocks"] if s["signal"]["label"] == k) for k in ORDER}
-    print(f"[done] {asof} の終値 / {len(res['stocks'])} 銘柄・{len(res['sectors'])} セクター / "
+    print(f"[done] {asof} の{'前場（途中）' if session == 'midday' else '終値'} / {len(res['stocks'])} 銘柄・{len(res['sectors'])} セクター / "
           f"買い候補 {count['buy']}・要注意 {count['caution']}・初動 {count['rise']}・様子見 {count['watch']} / "
           f"Gemini {result['run']['gemini_calls']} 回 / {result['run']['elapsed_sec']} 秒")
     for n in notes:

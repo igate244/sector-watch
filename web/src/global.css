@@ -573,3 +573,6 @@ button.card:active { background: var(--surface2); }
 .ask-btn:active { background: var(--surface2); }
 .toast { position: fixed; left: 50%; bottom: calc(var(--nav-h) + var(--hz-h) + 16px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50; max-width: 340px; width: calc(100% - 32px); background: var(--ink); color: var(--surface); padding: 10px 14px; border-radius: 10px; font-size: 0.8rem; box-shadow: 0 6px 20px #0004; transition: opacity 0.3s; }
 .toast.out { opacity: 0; }
+
+.freshness[data-state='midday'] .dot-status { background: var(--warn); }
+.comment-tag { font-size: 0.62rem; font-weight: 700; padding: 0 5px; margin-right: 5px; border-radius: 4px; background: color-mix(in oklab, var(--warn) 16%, var(--surface)); color: var(--warn); vertical-align: 1px; }
