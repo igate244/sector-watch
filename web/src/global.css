@@ -566,3 +566,10 @@ button.card:active { background: var(--surface2); }
 .mitem-pick .badge { font-size: 0.56rem; padding: 0 4px; justify-self: start; }
 .mitem-pick .pct { font-size: 0.78rem; font-weight: 600; justify-self: end; grid-column: 2; grid-row: 2; }
 .mitem-go { border: 0; background: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; height: 100%; border-left: 1px solid var(--line); }
+
+/* Gemini に聞く */
+.sched-item { position: relative; }
+.ask-btn { margin-left: auto; flex-shrink: 0; align-self: center; border: 1px solid var(--line-strong); background: var(--surface); color: var(--accent); border-radius: 999px; font-size: 0.66rem; font-weight: 700; padding: 2px 8px; cursor: pointer; white-space: nowrap; }
+.ask-btn:active { background: var(--surface2); }
+.toast { position: fixed; left: 50%; bottom: calc(var(--nav-h) + var(--hz-h) + 16px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50; max-width: 340px; width: calc(100% - 32px); background: var(--ink); color: var(--surface); padding: 10px 14px; border-radius: 10px; font-size: 0.8rem; box-shadow: 0 6px 20px #0004; transition: opacity 0.3s; }
+.toast.out { opacity: 0; }

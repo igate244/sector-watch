@@ -4,6 +4,7 @@ import { HORIZONS, useStockIntraday, type DataState, type Horizon } from '../lib
 import { HORIZON_LABEL, signed, signedYen, yen } from '../lib/format';
 import { usePositions } from '../lib/useHoldings';
 import LineChart from '../components/LineChart';
+import { askGemini, promptForEarnings } from '../lib/askGemini';
 import { Card, Chg, DecompBars, Empty, HorizonPicker, Pct, Segmented, SignalBadge, TopBar } from '../components/ui';
 import { Sources } from './TodayScreen';
 import { WINDOWS, type Win } from './SectorDetail';
@@ -63,7 +64,23 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
             {s.earnings?.next && (
               <div className="note" style={{ margin: 0 }}>
                 次の決算: <strong className="num">{Number(s.earnings.next.slice(5, 7))}/{Number(s.earnings.next.slice(8, 10))}</strong>
-                {s.earnings.next_est ? '（目安・前回の約 3 ヶ月後）' : s.earnings.kind ? `（${s.earnings.kind}）` : '（予定）'}
+                {s.earnings.next_est ? '（目安・前回の約 3 ヶ月後）' : s.earnings.kind ? `（${s.earnings.kind}）` : '（予定）'}{' '}
+                <button
+                  type="button"
+                  className="ask-btn"
+                  onClick={() =>
+                    askGemini(
+                      promptForEarnings(
+                        s.earnings!.next!,
+                        [{ name: s.name, code: s.code }],
+                        d.sectors.map((x) => x.name),
+                        [],
+                      ),
+                    )
+                  }
+                >
+                  ✦ 聞く
+                </button>
               </div>
             )}
           </div>
