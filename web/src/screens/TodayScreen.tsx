@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import type { Nav } from '../App';
-import { HORIZONS, type DataState, type Horizon, type Latest, type MarketBlock, type Stock } from '../lib/data';
+import { HORIZONS, type DataState, type Horizon, type Latest, type MarketBlock, type MarketEvent, type Stock } from '../lib/data';
 import { HORIZON_LABEL } from '../lib/format';
 import { useHeldCodes } from '../lib/useHoldings';
 import { Freshness, HeatTable, Loading, StockRow } from '../components/parts';
-import { Card, Count, Empty, Pct, TopBar } from '../components/ui';
+import { Card, Count, Empty, Pct, Segmented, TopBar } from '../components/ui';
 import LineChart from '../components/LineChart';
 
 const FIRST = 6;
@@ -58,7 +58,11 @@ export default function TodayScreen({ state, h, nav }: { state: DataState; h: Ho
             </button>
           </div>
 
+          <Schedule events={d.events ?? []} held={held} nav={nav} />
+
           <HeldToday stocks={d.stocks.filter((s) => held.has(s.code))} h={h} nav={nav} />
+
+          <Ranking stocks={d.stocks} h={h} held={held} nav={nav} />
 
           <div id="sec-buy" />
           <Card title={<>買い候補 <Count n={count(d.stocks, 'buy')} kind="buy" /></>} action={<span className="note" style={{ margin: 0 }}>20日・珍しい下げ順</span>}>
@@ -193,6 +197,131 @@ function HeldToday({ stocks, h, nav }: { stocks: Stock[]; h: Horizon; nav: Nav }
         ))}
       </div>
     </Card>
+  );
+}
+
+/** 上昇率（下落率）ランキング。期間は下のバー */
+function Ranking({ stocks, h, held, nav }: { stocks: Stock[]; h: Horizon; held: Set<string>; nav: Nav }) {
+  const [side, setSide] = useState<'up' | 'down'>('up');
+  const [all, setAll] = useState(false);
+  const list = stocks
+    .filter((s) => s.dec[h])
+    .sort((a, b) => (side === 'up' ? b.dec[h]!.r - a.dec[h]!.r : a.dec[h]!.r - b.dec[h]!.r));
+  const shown = list.slice(0, all ? 30 : 10);
+  return (
+    <>
+      <div id="sec-rank" />
+      <Card
+        title={side === 'up' ? '上昇率ランキング' : '下落率ランキング'}
+        action={
+          <Segmented
+            label="上昇か下落か"
+            value={side}
+            onChange={setSide}
+            options={[
+              ['up', '上昇'],
+              ['down', '下落'],
+            ]}
+          />
+        }
+      >
+        <p className="note">
+          {HORIZON_LABEL[h]}・監視中の {stocks.length} 銘柄。円は 1 株あたりの値幅。内訳を見ると「つられて上げた」か「個別で上げた」かが分かる
+        </p>
+        <div className="list">
+          {shown.map((s, i) => (
+            <StockRow key={s.code} s={s} h={h} rank={i + 1} showSector held={held.has(s.code)} onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
+          ))}
+        </div>
+        {list.length > 10 && (
+          <button type="button" className="link-btn block" onClick={() => setAll(!all)}>
+            {all ? '10 位までにする' : '30 位まで見る'}
+          </button>
+        )}
+      </Card>
+    </>
+  );
+}
+
+const WD = ['日', '月', '火', '水', '木', '金', '土'];
+
+/** これからの予定（大きなイベント・SQ・決算）。2 週間ぶん、「もっと見る」で先まで */
+function Schedule({ events, held, nav }: { events: MarketEvent[]; held: Set<string>; nav: Nav }) {
+  const [more, setMore] = useState(false);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const daysTo = (iso: string) => Math.round((new Date(iso + 'T00:00:00').getTime() - today.getTime()) / 86400000);
+  const upcoming = events.filter((e) => daysTo(e.date) >= 0);
+  const limit = more ? 120 : 14;
+  const shown = upcoming.filter((e) => daysTo(e.date) <= limit);
+  const byDate = new Map<string, MarketEvent[]>();
+  for (const e of shown) byDate.set(e.date, [...(byDate.get(e.date) ?? []), e]);
+  const nextBig = upcoming.find((e) => e.level === '大');
+  return (
+    <>
+      <div id="sec-schedule" />
+      <Card title={<>予定 <Count n={shown.length} /></>} action={<span className="note" style={{ margin: 0 }}>{more ? '先まで' : '2 週間'}</span>}>
+        {!shown.length ? (
+          <Empty>
+            2 週間以内の予定はありません
+            {nextBig && `。次の大きな予定は ${Number(nextBig.date.slice(5, 7))}/${Number(nextBig.date.slice(8, 10))} ${nextBig.title}`}
+          </Empty>
+        ) : (
+          <div className="sched">
+            {[...byDate.entries()].map(([date, list]) => {
+              const dt = new Date(date + 'T00:00:00');
+              const n = daysTo(date);
+              const earn = list.filter((e) => e.kind === 'earnings');
+              const heldEarn = earn.filter((e) => e.code && held.has(e.code));
+              const otherEarn = earn.filter((e) => !(e.code && held.has(e.code)));
+              return (
+                <div className="sched-day" key={date}>
+                  <div className="sched-date">
+                    <span className="num">
+                      {dt.getMonth() + 1}/{dt.getDate()}
+                    </span>
+                    <span className="wd">({WD[dt.getDay()]})</span>
+                    <span className="in">{n === 0 ? '今日' : n === 1 ? '明日' : `${n}日後`}</span>
+                  </div>
+                  <div className="sched-items">
+                    {list
+                      .filter((e) => e.kind !== 'earnings')
+                      .map((e, i) => (
+                        <div key={i} className="sched-item" data-level={e.level}>
+                          <span className="lvl">{e.level === '大' ? '重要' : e.kind === 'sq' ? 'SQ' : '予定'}</span>
+                          <span className="ttl">
+                            <span className="rg">{e.region === '米国' ? '米' : '日'}</span>
+                            {e.title}
+                            {e.time && <span className="tm"> {e.time}</span>}
+                            {e.memo && <span className="memo">{e.memo}</span>}
+                          </span>
+                        </div>
+                      ))}
+                    {[...heldEarn, ...otherEarn].length > 0 && (
+                      <div className="sched-item" data-level="決算">
+                        <span className="lvl">決算</span>
+                        <span className="ttl earn-list">
+                          {[...heldEarn, ...otherEarn].slice(0, more ? 99 : 6).map((e) => (
+                            <button key={e.code} type="button" className="earn-chip" data-held={!!(e.code && held.has(e.code))} onClick={() => e.code && nav.open({ kind: 'stock', code: e.code })}>
+                              {e.title.replace(/ 決算$/, '')}
+                              {e.code && held.has(e.code) && <span className="held-tag">保有</span>}
+                            </button>
+                          ))}
+                          {!more && earn.length > 6 && <span className="muted small">ほか {earn.length - 6} 社</span>}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <button type="button" className="link-btn block" onClick={() => setMore(!more)}>
+          {more ? '2 週間にする' : '先の予定も見る'}
+        </button>
+      </Card>
+    </>
   );
 }
 

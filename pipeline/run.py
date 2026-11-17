@@ -23,7 +23,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-from . import analysis, news, prices, watchlist
+from . import analysis, events, news, prices, watchlist
 
 ORDER = {"buy": 0, "caution": 1, "rise": 2, "watch": 3, "none": 4}
 
@@ -201,6 +201,17 @@ def main() -> None:
 
     attach_news(res["stocks"], prev, asof, n225["ret"]["20"], g)
 
+    # 決算発表予定日と大きな予定（取れなくても続ける）
+    today = datetime.now(news.JST).date()
+    try:
+        earn = events.earnings(rows, prev.get("stocks", []), today)
+        schedule = events.build(rows, earn, today)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[events] 失敗: {exc}")
+        earn, schedule = {s["code"]: s.get("earnings") for s in prev.get("stocks", [])}, prev.get("events", [])
+    for st in res["stocks"]:
+        st["earnings"] = earn.get(st["code"]) or None
+
     repo = os.environ.get("GITHUB_REPOSITORY", "")
     result = {
         "generated_at": datetime.now(news.JST).strftime("%Y-%m-%dT%H:%M+09:00"),
@@ -209,6 +220,7 @@ def main() -> None:
         "market": {"n225": n225, "topix": topix_block, "intraday": intraday},
         "sectors": res["sectors"],
         "stocks": res["stocks"],
+        "events": schedule,
         "market_comment": comment,
         "watchlist": {
             "source": source,

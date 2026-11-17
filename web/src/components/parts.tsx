@@ -1,6 +1,6 @@
 import type { DataState, Horizon, Latest, Stock } from '../lib/data';
 import { HORIZONS } from '../lib/data';
-import { businessDaysSince, dateJa, HORIZON_LABEL, signed, timeJa } from '../lib/format';
+import { businessDaysSince, dateJa, dir, HORIZON_LABEL, signed, timeJa } from '../lib/format';
 import { Chg, DecompInline, Pct, SignalBadge } from './ui';
 
 /** データの鮮度。古い値を最新と見間違えないよう、常に画面の上に出す */
@@ -48,28 +48,38 @@ export function StockRow({
   onOpen,
   showSector,
   held,
+  rank,
 }: {
   s: Stock;
   h: Horizon;
   onOpen: () => void;
   showSector?: boolean;
   held?: boolean;
+  /** ランキングの順位（付けると左に番号と値上がり幅を出す） */
+  rank?: number;
 }) {
   const d = s.dec[h];
   return (
     <button type="button" className="row" onClick={onOpen}>
       <span className="row-main">
         <span className="row-title">
+          {rank != null && <span className="rank">{rank}</span>}
           {s.name}
           {held && <span className="held-tag">保有</span>}
+          <EarningsSoon s={s} />
         </span>
         <span className="row-sub">
           <span className="num">{s.code}</span>
           {showSector && <span>{s.sector}</span>}
           <span className="num">¥{s.last.toLocaleString('ja-JP')}</span>
+          {rank != null && d && (
+            <span className="pct num" data-dir={dir(d.r)}>
+              {d.r >= 0 ? '+' : '−'}¥{Math.abs(Math.round(s.last - s.last / (1 + d.r))).toLocaleString('ja-JP')}
+            </span>
+          )}
           <SignalBadge label={s.signal.label} />
         </span>
-        {s.signal.label === 'rise' && s.rise ? (
+        {s.signal.label === 'rise' && s.rise && rank == null ? (
           <span className="hits">
             {s.rise.hits.map((x, i) => (
               <span key={x} className={i < 2 ? 'hit-main' : ''}>
@@ -144,4 +154,13 @@ export function HeatTable({ d, onOpen }: { d: Latest; onOpen: (name: string) => 
       <p className="note" style={{ marginTop: 6 }}>2 行目からは日経平均との差。20 日の弱い順。タップで開く。</p>
     </div>
   );
+}
+
+/** 決算が 7 日以内なら印を付ける（目安の日付は出さない） */
+export function EarningsSoon({ s }: { s: Stock }) {
+  const e = s.earnings;
+  if (!e?.next || e.next_est) return null;
+  const days = Math.round((new Date(e.next + 'T00:00:00+09:00').getTime() - Date.now()) / 86400000);
+  if (days < -1 || days > 7) return null;
+  return <span className="earn-tag">決算 {Number(e.next.slice(5, 7))}/{Number(e.next.slice(8, 10))}</span>;
 }

@@ -157,3 +157,11 @@ trades: id, date, code, name, side(buy|sell), price, qty, account(NISA|特定|�
 `{ asof, h: { "1"|"5"|"20": { interval, t[], stock[], sector[], n225[] } } }`。
 銘柄の詳細を開いたときだけ読む（いつもの latest.json は重くしない）。1 ファイル 16KB ほど（圧縮して 4KB）。
 セクターは構成銘柄を「前の日の終値＝100」にそろえた平均。毎回作り直し、銘柄リストから外した銘柄のファイルは消える。
+
+### 予定と決算（pipeline/events.py）
+- `config/events.csv`: 大きな予定（FOMC・日銀・米雇用統計・CPI など）。日本時間で手書き。Claude に頼めば追記する
+- SQ: 毎月第 2 金曜を自動（3・6・9・12 月はメジャー SQ）
+- 決算: JPX「決算発表予定日」の Excel（期末の翌月上旬に掲載）から拾う。前回の結果を引き継ぎ、
+  予定日が無い銘柄は「前回＋約 3 ヶ月」を目安（`next_est: true`、画面では「目安」と表示、予定一覧には出さない）
+- latest.json: `events[] {date, time, region, level(大|中|決算), title, memo, kind(macro|sq|earnings), code?}`、
+  `stocks[].earnings {last?, next?, next_est?, kind?}`

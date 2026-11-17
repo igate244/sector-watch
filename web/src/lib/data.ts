@@ -58,6 +58,8 @@ export interface Stock {
   z20: number | null;
   signal: { label: SignalLabel; reason: string };
   rise?: Rise | null;
+  /** 決算。next_est が true なら「前回＋約 3 ヶ月」の目安 */
+  earnings?: { last?: string; next?: string; next_est?: boolean; kind?: string } | null;
   news?: News | null;
   series: (number | null)[];
 }
@@ -85,11 +87,25 @@ export interface Intraday {
   topix: (number | null)[] | null;
 }
 
+/** 相場の予定（config/events.csv・SQ・決算発表予定日） */
+export interface MarketEvent {
+  date: string;
+  time: string;
+  region: string;
+  /** 大 / 中 / 決算 */
+  level: string;
+  title: string;
+  memo: string;
+  kind: 'macro' | 'sq' | 'earnings';
+  code?: string;
+}
+
 export interface Latest {
   generated_at: string;
   asof: string;
   dates: string[];
   market: { n225: MarketBlock; topix: MarketBlock | null; intraday?: Partial<Record<Horizon, Intraday>> };
+  events?: MarketEvent[];
   sectors: Sector[];
   stocks: Stock[];
   market_comment: { asof: string; text: string; sources: Source[] } | null;
