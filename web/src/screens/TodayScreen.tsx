@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import type { Nav } from '../App';
-import { HORIZONS, type DataState, type Horizon, type Latest, type MarketBlock, type MarketEvent, type Stock } from '../lib/data';
-import { HORIZON_LABEL } from '../lib/format';
+import { type DataState, type Latest, type MarketBlock, type MarketEvent, type Stock } from '../lib/data';
+import { asHorizon, chartDays, PERIOD_LABEL, PERIODS, retOf, usePeriod, winRet, type Period } from '../lib/period';
 import { useHeldCodes } from '../lib/useHoldings';
 import { Freshness, Loading, StockRow } from '../components/parts';
 import { Card, Count, Empty, Pct, Segmented, SettingsButton, TopBar } from '../components/ui';
 import LineChart from '../components/LineChart';
 import { askGemini, promptForEarnings, promptForEvent } from '../lib/askGemini';
 
-export default function TodayScreen({ state, h, nav }: { state: DataState; h: Horizon; nav: Nav }) {
+export default function TodayScreen({ state, nav }: { state: DataState; nav: Nav }) {
+  const h = usePeriod();
   const held = useHeldCodes();
   const d = state.data;
 
@@ -26,10 +27,10 @@ export default function TodayScreen({ state, h, nav }: { state: DataState; h: Ho
             </div>
             <MarketChart d={d} h={h} />
             <div className="hz-strip" aria-label="日経平均の期間別騰落率">
-              {HORIZONS.map((x) => (
+              {PERIODS.map(([x, lab]) => (
                 <div key={x} data-on={x === h}>
-                  <span className="k">{HORIZON_LABEL[x]}</span>
-                  <Pct v={d.market.n225.ret[x]} />
+                  <span className="k">{lab}</span>
+                  <Pct v={mret(d.market.n225, x)} />
                 </div>
               ))}
             </div>
@@ -83,24 +84,30 @@ function MarketComment({ c }: { c: NonNullable<Latest['market_comment']> }) {
   );
 }
 
-function MarketKpi({ m, label, h }: { m: MarketBlock; label: string; h: Horizon }) {
+function MarketKpi({ m, label, h }: { m: MarketBlock; label: string; h: Period }) {
   return (
     <div className="kpi">
       <div className="kpi-label">
         <span>{label}</span>
-        <span>{HORIZON_LABEL[h]}</span>
+        <span>{PERIOD_LABEL[h]}</span>
       </div>
       <div className="kpi-val">{m.last?.toLocaleString('ja-JP', { maximumFractionDigits: 2 })}</div>
-      <Pct v={m.ret[h]} />
+      <Pct v={mret(m, h)} />
     </div>
   );
 }
 
 const STEP: Record<string, string> = { '5m': '5分足', '15m': '15分足', '60m': '60分足' };
 
-/** 日経平均と TOPIX を 1 枚に重ねる。1・5・20 日は分足、60 日は日足。期間の始め（前の日の終値）を 0% にそろえる */
-function MarketChart({ d, h }: { d: Latest; h: Horizon }) {
-  const intra = h === '60' ? undefined : d.market.intraday?.[h];
+/** 市場の騰落率（1・5・20・60 日は計算済み、6ヶ月・1年は series から） */
+function mret(m: MarketBlock, p: Period): number | null {
+  const h = asHorizon(p);
+  return h ? m.ret[h] : winRet(m.series, Number(p));
+}
+
+/** 日経平均と TOPIX を 1 枚に重ねる。1日・5日・1ヶ月は分足、3ヶ月〜は日足。期間の始め（前の日の終値）を 0% にそろえる */
+function MarketChart({ d, h }: { d: Latest; h: Period }) {
+  const intra = h === '1' || h === '5' || h === '20' ? d.market.intraday?.[h] : undefined;
   if (intra && intra.n225) {
     const series = [
       { label: '日経平均', values: intra.n225, kind: 'main' as const },
@@ -129,7 +136,7 @@ function MarketChart({ d, h }: { d: Latest; h: Horizon }) {
   return (
     <LineChart
       dates={d.dates}
-      days={h === '1' ? 5 : Number(h)}
+      days={chartDays(h)}
       height={160}
       series={[
         { label: '日経平均', values: d.market.n225.series, kind: 'main' },
@@ -140,15 +147,15 @@ function MarketChart({ d, h }: { d: Latest; h: Horizon }) {
 }
 
 /** 保有株。動きの大きい順に 5 つまで、1 行ずつ詰めて */
-function HeldToday({ stocks, h, nav }: { stocks: Stock[]; h: Horizon; nav: Nav }) {
+function HeldToday({ stocks, h, nav }: { stocks: Stock[]; h: Period; nav: Nav }) {
   const [all, setAll] = useState(false);
   if (!stocks.length) return null;
-  const list = [...stocks].sort((a, b) => Math.abs(b.dec[h]?.r ?? 0) - Math.abs(a.dec[h]?.r ?? 0));
+  const list = [...stocks].sort((a, b) => Math.abs(retOf(b, h) ?? 0) - Math.abs(retOf(a, h) ?? 0));
   return (
     <Card title={<>保有株 <Count n={stocks.length} /></>} action={<span className="note" style={{ margin: 0 }}>動きの大きい順</span>}>
       <div className="list">
         {(all ? list : list.slice(0, 5)).map((s) => (
-          <StockRow key={s.code} s={s} h={h} showSector compact onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
+          <StockRow key={s.code} s={s} showSector compact onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
         ))}
       </div>
       {list.length > 5 && (
@@ -161,12 +168,14 @@ function HeldToday({ stocks, h, nav }: { stocks: Stock[]; h: Horizon; nav: Nav }
 }
 
 /** 上昇率（下落率）ランキング。期間は下のバー */
-function Ranking({ stocks, h, held, nav }: { stocks: Stock[]; h: Horizon; held: Set<string>; nav: Nav }) {
+function Ranking({ stocks, h, held, nav }: { stocks: Stock[]; h: Period; held: Set<string>; nav: Nav }) {
   const [side, setSide] = useState<'up' | 'down'>('up');
   const [all, setAll] = useState(false);
   const list = stocks
-    .filter((s) => s.dec[h])
-    .sort((a, b) => (side === 'up' ? b.dec[h]!.r - a.dec[h]!.r : a.dec[h]!.r - b.dec[h]!.r));
+    .map((s) => ({ s, r: retOf(s, h) }))
+    .filter((x): x is { s: Stock; r: number } => x.r != null)
+    .sort((a, b) => (side === 'up' ? b.r - a.r : a.r - b.r))
+    .map((x) => x.s);
   const shown = list.slice(0, all ? 30 : 5);
   return (
     <>
@@ -185,10 +194,10 @@ function Ranking({ stocks, h, held, nav }: { stocks: Stock[]; h: Horizon; held: 
           />
         }
       >
-        <p className="note">{HORIZON_LABEL[h]}・{stocks.length} 銘柄中。円は 1 株あたりの値幅</p>
+        <p className="note">{PERIOD_LABEL[h]}・{stocks.length} 銘柄中。円は 1 株あたりの値幅</p>
         <div className="list">
           {shown.map((s, i) => (
-            <StockRow key={s.code} s={s} h={h} rank={i + 1} showSector held={held.has(s.code)} onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
+            <StockRow key={s.code} s={s} rank={i + 1} showSector held={held.has(s.code)} onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
           ))}
         </div>
         {list.length > 5 && (

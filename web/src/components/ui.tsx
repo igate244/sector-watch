@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import type { Dec, Horizon, SignalLabel } from '../lib/data';
-import { dir, HORIZON_LABEL, pct, signed, SIGNAL_LABEL } from '../lib/format';
+import type { Dec, SignalLabel } from '../lib/data';
+import { PERIODS, type Period } from '../lib/period';
+import { dir, pct, signed, SIGNAL_LABEL } from '../lib/format';
 
 /** 騰落率。上昇は赤、下落は青。▲▼ も必ず付ける */
 export function Pct({ v, digits = 1, strong }: { v: number | null | undefined; digits?: number; strong?: boolean }) {
@@ -212,16 +213,11 @@ export function Segmented<T extends string>({
   );
 }
 
-export function HorizonPicker({ value, onChange }: { value: Horizon; onChange: (h: Horizon) => void }) {
-  return (
-    <Segmented
-      label="期間"
-      value={value}
-      onChange={onChange}
-      options={(['1', '5', '20', '60'] as Horizon[]).map((h) => [h, HORIZON_LABEL[h]])}
-    />
-  );
+/** 画面下の期間のバー（アプリ全体で 1 つ） */
+export function PeriodPicker({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
+  return <Segmented label="期間" value={value} onChange={onChange} options={PERIODS} />;
 }
+
 
 export function Card({ title, children, action }: { title?: ReactNode; children: ReactNode; action?: ReactNode }) {
   return (

@@ -165,3 +165,8 @@ trades: id, date, code, name, side(buy|sell), price, qty, account(NISA|特定|�
   予定日が無い銘柄は「前回＋約 3 ヶ月」を目安（`next_est: true`、画面では「目安」と表示、予定一覧には出さない）
 - latest.json: `events[] {date, time, region, level(大|中|決算), title, memo, kind(macro|sq|earnings), code?}`、
   `stocks[].earnings {last?, next?, next_est?, kind?}`
+
+### 期間（アプリ全体で 1 つ）
+画面下のバーで「1日・5日・1ヶ月・3ヶ月・6ヶ月・1年」を切り替え、今日・セクター・保有・銘柄詳細・セクター詳細が同じ期間で表示する（web/src/lib/period.ts）。
+1ヶ月＝20 営業日、3ヶ月＝60、6ヶ月＝120、1年＝245。内訳（日経・業種・個別）は 3ヶ月まで（6ヶ月・1年は騰落率だけ）。
+チャートの足は 1日＝5 分足、5日＝15 分足、1ヶ月＝60 分足（分足があれば）、3ヶ月〜＝日足。候補（20 日固定）と成績（5・20 日後）は期間に関係しない。

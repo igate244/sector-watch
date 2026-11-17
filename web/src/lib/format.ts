@@ -1,6 +1,6 @@
 import type { Horizon, SignalLabel } from './data';
 
-export const HORIZON_LABEL: Record<Horizon, string> = { '1': '1日', '5': '5日', '20': '20日', '60': '60日' };
+export const HORIZON_LABEL: Record<Horizon, string> = { '1': '1日', '5': '5日', '20': '1ヶ月', '60': '3ヶ月' };
 
 export const SIGNAL_LABEL: Record<SignalLabel, string> = {
   buy: '買い候補',

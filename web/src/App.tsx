@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useLatest, type Horizon } from './lib/data';
+import { useLatest } from './lib/data';
+import { PeriodContext, savedPeriod, savePeriod, type Period } from './lib/period';
 import { autoBackup } from './lib/drive';
-import { HorizonPicker, Icon } from './components/ui';
+import { Icon, PeriodPicker } from './components/ui';
 import TodayScreen from './screens/TodayScreen';
 import SectorsScreen from './screens/SectorsScreen';
 import SectorDetail from './screens/SectorDetail';
@@ -30,7 +31,6 @@ export interface Nav {
 }
 
 const MARK = 'sector-watch-overlay';
-const H_KEY = 'sw.horizon';
 
 const TABS: [Tab, string][] = [
   ['today', '今日'],
@@ -67,7 +67,7 @@ export default function App() {
   const state = useLatest();
   const [tab, setTab] = useState<Tab>('today');
   const [stack, setStack] = useState<Overlay[]>([]);
-  const [h, setH] = useState<Horizon>(() => (localStorage.getItem(H_KEY) as Horizon) || '20');
+  const [period, setPeriod] = useState<Period>(savedPeriod);
 
   useEffect(() => {
     void autoBackup();
@@ -143,35 +143,36 @@ export default function App() {
     },
   };
 
-  const changeH = (v: Horizon) => {
-    setH(v);
-    localStorage.setItem(H_KEY, v);
+  const changePeriod = (v: Period) => {
+    setPeriod(v);
+    savePeriod(v);
   };
 
   const top = stack[stack.length - 1];
-  const showHorizon = !top ? tab === 'today' : top.kind === 'sector';
+  // 期間のバーは、期間で中身が変わる画面だけに出す（どの画面でも同じ期間）
+  const showHorizon = !top ? tab === 'today' || tab === 'sectors' || tab === 'holdings' : top.kind === 'sector' || top.kind === 'stock';
 
   let body;
-  if (top?.kind === 'sector') body = <SectorDetail state={state} name={top.name} h={h} nav={nav} />;
+  if (top?.kind === 'sector') body = <SectorDetail state={state} name={top.name} nav={nav} />;
   else if (top?.kind === 'stock') body = <StockDetail state={state} code={top.code} nav={nav} />;
   else if (top?.kind === 'trades')
     body = <TradesSheet code={top.code} name={top.name} addNew={top.addNew} state={state} nav={nav} />;
   else if (top?.kind === 'settings') body = <SettingsScreen state={state} nav={nav} />;
-  else if (tab === 'today') body = <TodayScreen state={state} h={h} nav={nav} />;
+  else if (tab === 'today') body = <TodayScreen state={state} nav={nav} />;
   else if (tab === 'signals') body = <SignalsScreen state={state} nav={nav} kind={sig} onKind={changeSig} />;
   else if (tab === 'sectors') body = <SectorsScreen state={state} nav={nav} />;
   else if (tab === 'track') body = <TrackScreen state={state} nav={nav} />;
   else body = <HoldingsScreen state={state} nav={nav} />;
 
   return (
+    <PeriodContext.Provider value={period}>
     <div className="app">
       <main className="content" key={top ? `${top.kind}:${'code' in top ? top.code : 'name' in top ? top.name : ''}` : tab}>
         {body}
       </main>
       {showHorizon && (
         <div className="horizon-bar">
-          <span className="hz-label">期間</span>
-          <HorizonPicker value={h} onChange={changeH} />
+          <PeriodPicker value={period} onChange={changePeriod} />
         </div>
       )}
       <nav className="bottom-nav" aria-label="画面の切り替え">
@@ -191,5 +192,6 @@ export default function App() {
         ))}
       </nav>
     </div>
+    </PeriodContext.Provider>
   );
 }

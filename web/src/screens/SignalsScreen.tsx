@@ -66,7 +66,7 @@ export default function SignalsScreen({
               <>
                 <div className="list">
                   {shown.map((s) => (
-                    <StockRow key={s.code} s={s} h="20" showSector held={held.has(s.code)} onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
+                    <StockRow key={s.code} s={s} p="20" showSector held={held.has(s.code)} onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
                   ))}
                 </div>
                 {list.length > FIRST && (
