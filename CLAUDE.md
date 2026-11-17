@@ -43,4 +43,5 @@ curl -sL https://igate244.github.io/sector-watch/data/codes.json  -o web/public/
 - `pipeline/` 計算（Python）。`analysis.py` 要因分解と判定、`news.py` Gemini＋Google 検索、`run.py` 全体
 - `web/` 画面（React + TypeScript + Vite + PWA）。`src/screens/` が各画面、`src/components/` が部品
 - `docs/DESIGN.md` 設計書（計算式・判定条件・データの形）
+- 大きな予定は `config/events.csv`（日本時間）。頼まれたら追記して main に push してよい
 - 銘柄リストの本体は `config/watchlist.csv`（列: セクター, コード, 銘柄名, メモ）。頼まれたら直して main に push してよい（push で即再計算・公開）。同じコードは 1 つのセクターにしか入れられない

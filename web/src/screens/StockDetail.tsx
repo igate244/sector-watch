@@ -60,6 +60,12 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
             <div className="note" style={{ margin: 0 }}>
               前日比 · {s.asof.slice(5).replace('-', '/')} 終値
             </div>
+            {s.earnings?.next && (
+              <div className="note" style={{ margin: 0 }}>
+                次の決算: <strong className="num">{Number(s.earnings.next.slice(5, 7))}/{Number(s.earnings.next.slice(8, 10))}</strong>
+                {s.earnings.next_est ? '（目安・前回の約 3 ヶ月後）' : s.earnings.kind ? `（${s.earnings.kind}）` : '（予定）'}
+              </div>
+            )}
           </div>
           <SignalBadge label={s.signal.label} />
         </div>
