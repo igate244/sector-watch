@@ -6,6 +6,7 @@ import { useHeldCodes } from '../lib/useHoldings';
 import { Freshness, Loading, StockRow } from '../components/parts';
 import { Card, Count, Empty, Pct, Segmented, SettingsButton, TopBar } from '../components/ui';
 import LineChart from '../components/LineChart';
+import { askGemini, promptForEarnings, promptForEvent } from '../lib/askGemini';
 
 export default function TodayScreen({ state, h, nav }: { state: DataState; h: Horizon; nav: Nav }) {
   const held = useHeldCodes();
@@ -50,7 +51,13 @@ export default function TodayScreen({ state, h, nav }: { state: DataState; h: Ho
             </button>
           </div>
 
-          <Schedule events={d.events ?? []} held={held} nav={nav} />
+          <Schedule
+            events={d.events ?? []}
+            held={held}
+            nav={nav}
+            sectors={d.sectors.map((x) => x.name)}
+            heldNames={d.stocks.filter((x) => held.has(x.code)).map((x) => x.name)}
+          />
 
           <HeldToday stocks={d.stocks.filter((s) => held.has(s.code))} h={h} nav={nav} />
 
@@ -196,7 +203,27 @@ function Ranking({ stocks, h, held, nav }: { stocks: Stock[]; h: Horizon; held: 
 const WD = ['日', '月', '火', '水', '木', '金', '土'];
 
 /** これからの予定（大きなイベント・SQ・決算）。2 週間ぶん、「もっと見る」で先まで */
-function Schedule({ events, held, nav }: { events: MarketEvent[]; held: Set<string>; nav: Nav }) {
+function AskButton({ onAsk }: { onAsk: () => void }) {
+  return (
+    <button type="button" className="ask-btn" onClick={onAsk} aria-label="Gemini に聞く（質問をコピーして開く）">
+      ✦ 聞く
+    </button>
+  );
+}
+
+function Schedule({
+  events,
+  held,
+  nav,
+  sectors,
+  heldNames,
+}: {
+  events: MarketEvent[];
+  held: Set<string>;
+  nav: Nav;
+  sectors: string[];
+  heldNames: string[];
+}) {
   const [more, setMore] = useState(false);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -248,6 +275,7 @@ function Schedule({ events, held, nav }: { events: MarketEvent[]; held: Set<stri
                             {e.time && <span className="tm"> {e.time}</span>}
                             {e.memo && <span className="memo">{e.memo}</span>}
                           </span>
+                          <AskButton onAsk={() => askGemini(promptForEvent(e, sectors, heldNames))} />
                         </div>
                       ))}
                     {[...heldEarn, ...otherEarn].length > 0 && (
@@ -262,6 +290,18 @@ function Schedule({ events, held, nav }: { events: MarketEvent[]; held: Set<stri
                           ))}
                           {!more && earn.length > 6 && <span className="muted small">ほか {earn.length - 6} 社</span>}
                         </span>
+                        <AskButton
+                          onAsk={() =>
+                            askGemini(
+                              promptForEarnings(
+                                date,
+                                [...heldEarn, ...otherEarn].slice(0, 8).map((x) => ({ name: x.title.replace(/ 決算$/, ''), code: x.code })),
+                                sectors,
+                                heldNames,
+                              ),
+                            )
+                          }
+                        />
                       </div>
                     )}
                   </div>
