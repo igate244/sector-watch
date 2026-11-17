@@ -60,5 +60,21 @@ def main() -> None:
     print("OK")
 
 
+
+
+def test_earnings_estimate_not_promoted() -> None:
+    """前回の「目安」の決算日を、次の回で本当の予定日として扱わない。"""
+    from datetime import date
+    from . import events
+    events.fetch_jpx_kessan = lambda: {}
+    rows = [{"code": "6503", "name": "三菱電機"}]
+    prev = [{"code": "6503", "earnings": {"last": "2026-10-30", "next": "2027-01-29", "next_est": True}}]
+    e = events.earnings(rows, prev, date(2026, 11, 17))
+    assert e["6503"].get("next_est") is True, e
+    assert not [x for x in events.build(rows, e, date(2026, 11, 17)) if x["kind"] == "earnings"]
+
+
 if __name__ == "__main__":
     main()
+    test_earnings_estimate_not_promoted()
+    print("決算の目安: OK")

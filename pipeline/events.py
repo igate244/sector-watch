@@ -135,7 +135,8 @@ def earnings(rows: list[dict], prev_stocks: list[dict], today: date) -> dict[str
     for r in rows:
         code = r["code"]
         known = dict(prev.get(code, {}))
-        known.pop("next_est", None)
+        if known.pop("next_est", None):
+            known.pop("next", None)  # 前回の「目安」は本当の予定日ではないので捨てて計算し直す
         hit = jpx.get(code)
         if hit:
             if hit["date"] >= today.isoformat():
