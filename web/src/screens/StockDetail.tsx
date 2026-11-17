@@ -3,7 +3,7 @@ import { HORIZONS, useStockIntraday, type DataState } from '../lib/data';
 import { HORIZON_LABEL, signed, signedYen, yen } from '../lib/format';
 import { usePositions } from '../lib/useHoldings';
 import LineChart from '../components/LineChart';
-import { askGemini, promptForEarnings } from '../lib/askGemini';
+import { askGemini, promptForEarnings, promptForStock } from '../lib/askGemini';
 import { Card, Chg, DecompBars, Empty, Pct, SignalBadge, TopBar } from '../components/ui';
 import { Sources } from './TodayScreen';
 import { chartDays, decOf, PERIOD_LABEL, usePeriod } from '../lib/period';
@@ -107,6 +107,26 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
         </div>
         {s.signal.reason && <p className="reason">{s.signal.reason}</p>}
         {s.memo && <p className="muted small">メモ: {s.memo}</p>}
+        <button
+          type="button"
+          className="ask-pro"
+          onClick={() => {
+            const sec = d.sectors.find((x) => x.name === s.sector);
+            const n20 = d.market.n225.ret['20'];
+            askGemini(
+              promptForStock(s, {
+                sectorRel20: sec?.dec['20'] && n20 != null ? sec.dec['20'].r - n20 : null,
+                n225r20: n20,
+                held: pos && pos.qty > 0 ? { qty: pos.qty, avg: pos.avg } : null,
+              }),
+            );
+          }}
+        >
+          ✦ いま買って大丈夫？ プロの目で Gemini に聞く
+        </button>
+        <p className="note" style={{ margin: '4px 0 0' }}>
+          最新のニュース・決算・割安さ・チャートを調べてから、根拠つきで答えるよう頼む質問をコピーして Gemini を開きます
+        </p>
       </Card>
 
       <Card title={`比較チャート（${PERIOD_LABEL[p]}）`}>
