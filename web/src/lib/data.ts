@@ -175,3 +175,35 @@ export function stockByCode(d: Latest): Map<string, Stock> {
 export function windowStart(len: number, days: number): number {
   return Math.max(0, len - 1 - days);
 }
+
+/* ------------------------------------------------------------------ 銘柄ごとの分足（詳細を開いたときだけ読む） */
+
+export interface StockIntradayBlock {
+  interval: string;
+  t: string[];
+  stock: (number | null)[];
+  /** セクター平均（前の日の終値＝100） */
+  sector: (number | null)[] | null;
+  n225: (number | null)[] | null;
+}
+export interface StockIntraday {
+  asof: string;
+  h: Partial<Record<Horizon, StockIntradayBlock>>;
+}
+
+export function useStockIntraday(code: string, asof: string | undefined): StockIntraday | null {
+  const [v, setV] = useState<StockIntraday | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setV(null);
+    if (!asof) return;
+    fetch(url(`intraday/${code}.json?asof=${asof}`))
+      .then((r) => (r.ok ? (r.json() as Promise<StockIntraday>) : null))
+      .then((j) => alive && setV(j))
+      .catch(() => alive && setV(null));
+    return () => {
+      alive = false;
+    };
+  }, [code, asof]);
+  return v;
+}

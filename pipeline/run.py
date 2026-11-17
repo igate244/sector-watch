@@ -66,6 +66,48 @@ def attach_news(stocks: list[dict], prev: dict, asof: str, market_r20: float | N
             }
 
 
+def write_stock_intraday(out: Path, rows: list[dict], intra: dict, asof: str) -> None:
+    """銘柄ごとの分足を data/intraday/<コード>.json に書く（詳細を開いたときだけ読む）。
+    セクターは構成銘柄の「前の日の終値＝100」にそろえた平均。"""
+    d = out / "intraday"
+    d.mkdir(parents=True, exist_ok=True)
+    for f in d.glob("*.json"):
+        f.unlink()
+    if not intra:
+        return
+    members: dict[str, list[str]] = {}
+    for r in rows:
+        members.setdefault(r["sector"], []).append(r["code"] + ".T")
+
+    def norm(v: list) -> list:
+        base = next((x for x in v if x), None)
+        return [None if (x is None or not base) else x / base * 100 for x in v]
+
+    sector_avg: dict = {}
+    for h, b in intra.items():
+        for sec, ts in members.items():
+            cols = [norm(b[t]) for t in ts if b.get(t)]
+            avg = []
+            for i in range(len(b["t"])):
+                xs = [c[i] for c in cols if c[i] is not None]
+                avg.append(round(sum(xs) / len(xs), 3) if xs else None)
+            sector_avg[(h, sec)] = avg if cols else None
+    n = 0
+    for r in rows:
+        t = r["code"] + ".T"
+        blocks = {}
+        for h, b in intra.items():
+            if not b.get(t):
+                continue
+            blocks[h] = {"interval": b["interval"], "t": b["t"], "stock": b[t],
+                         "sector": sector_avg.get((h, r["sector"])), "n225": b.get(prices.N225)}
+        if blocks:
+            (d / f"{r['code']}.json").write_text(
+                json.dumps({"asof": asof, "h": blocks}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+            n += 1
+    print(f"[intraday] 銘柄ごとの分足 {n} 件を書きました")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="site/data")
@@ -129,10 +171,12 @@ def main() -> None:
     n225 = analysis.market_block("日経平均", market, market.index)
     topix_block = analysis.market_block("TOPIX（1306 ETF）", topix, market.index) if topix is not None else None
 
-    # 市場カードのチャート用の分足（1 日＝5 分足、5 日＝15 分足、20 日＝60 分足）。取れなくても続ける
-    intraday = {}
+    # 分足（1 日＝5 分足、5 日＝15 分足、20 日＝60 分足）。市場カードと銘柄詳細のチャート用。取れなくても続ける
+    intraday: dict = {}
+    intra_raw: dict = {}
     try:
-        for h, b in prices.download_intraday([prices.N225, prices.TOPIX_ETF], until=asof).items():
+        intra_raw = prices.download_intraday([r["code"] + ".T" for r in rows] + [prices.N225, prices.TOPIX_ETF], until=asof)
+        for h, b in intra_raw.items():
             intraday[h] = {"interval": b["interval"], "t": b["t"],
                            "n225": b.get(prices.N225), "topix": b.get(prices.TOPIX_ETF)}
     except Exception as exc:  # noqa: BLE001
@@ -181,6 +225,7 @@ def main() -> None:
     }
     (out / "latest.json").write_text(json.dumps(result, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     codes = sorted([c, n] for c, n in names.items())
+    write_stock_intraday(out, rows, intra_raw, asof)
     (out / "codes.json").write_text(json.dumps(codes, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     count = {k: sum(1 for s in res["stocks"] if s["signal"]["label"] == k) for k in ORDER}
