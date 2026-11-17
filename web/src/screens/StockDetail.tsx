@@ -1,29 +1,17 @@
-import { useState } from 'react';
 import type { Nav } from '../App';
-import { HORIZONS, useStockIntraday, type DataState, type Horizon } from '../lib/data';
+import { HORIZONS, useStockIntraday, type DataState } from '../lib/data';
 import { HORIZON_LABEL, signed, signedYen, yen } from '../lib/format';
 import { usePositions } from '../lib/useHoldings';
 import LineChart from '../components/LineChart';
 import { askGemini, promptForEarnings } from '../lib/askGemini';
-import { Card, Chg, DecompBars, Empty, HorizonPicker, Pct, Segmented, SignalBadge, TopBar } from '../components/ui';
+import { Card, Chg, DecompBars, Empty, Pct, SignalBadge, TopBar } from '../components/ui';
 import { Sources } from './TodayScreen';
-import { WINDOWS, type Win } from './SectorDetail';
+import { chartDays, decOf, PERIOD_LABEL, usePeriod } from '../lib/period';
 
-/** 1日・5日・20日は分足（詳細を開いたときに読む）、3ヶ月〜は日足 */
-type ChartWin = 'i1' | 'i5' | 'i20' | Win;
-const CHART_WINS: [ChartWin, string][] = [
-  ['i1', '1日'],
-  ['i5', '5日'],
-  ['i20', '20日'],
-  ...WINDOWS.filter(([w]) => w !== '20'),
-];
-const isIntra = (w: ChartWin): w is 'i1' | 'i5' | 'i20' => w.startsWith('i');
-const intraH = (w: 'i1' | 'i5' | 'i20') => w.slice(1) as Horizon;
 const STEP: Record<string, string> = { '5m': '5分足', '15m': '15分足', '60m': '60分足' };
 
 export default function StockDetail({ state, code, nav }: { state: DataState; code: string; nav: Nav }) {
-  const [win, setWin] = useState<ChartWin>('60');
-  const [h, setH] = useState<Horizon>('20');
+  const p = usePeriod();
   const positions = usePositions();
   const d = state.data;
   const s = d?.stocks.find((x) => x.code === code);
@@ -121,11 +109,10 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
         {s.memo && <p className="muted small">メモ: {s.memo}</p>}
       </Card>
 
-      <Card title="比較チャート">
-        <Segmented label="チャートの期間" value={win} onChange={setWin} options={CHART_WINS.filter(([w]) => !isIntra(w) || intra?.h[intraH(w)])} />
-        {isIntra(win) && intra?.h[intraH(win)] ? (
+      <Card title={`比較チャート（${PERIOD_LABEL[p]}）`}>
+        {(p === '1' || p === '5' || p === '20') && intra?.h[p] ? (
           (() => {
-            const b = intra.h[intraH(win)]!;
+            const b = intra.h[p]!;
             const lastDay = b.t[b.t.length - 1].slice(0, 10);
             const md = (x: string) => `${Number(x.slice(5, 7))}/${Number(x.slice(8, 10))}`;
             const hm = (x: string) => (x.slice(0, 10) === lastDay ? x.slice(11, 16) : '前日');
@@ -134,7 +121,7 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
                 <LineChart unit="¥"
                   dates={b.t}
                   days={b.t.length - 1}
-                  fmtX={win === 'i1' ? hm : md}
+                  fmtX={p === '1' ? hm : md}
                   fmtRead={(x) => `${md(x)} ${x.slice(11, 16)}`}
                   series={[
                     { label: shortLabel(s.name), values: b.stock, kind: 'main' },
@@ -151,7 +138,7 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
         ) : (
           <LineChart unit="¥"
             dates={d.dates}
-            days={isIntra(win) ? Number(intraH(win)) : Number(win)}
+            days={chartDays(p)}
             series={[
               { label: shortLabel(s.name), values: s.series, kind: 'main' },
               ...(sector ? [{ label: `${s.sector}平均`, values: sector.series, kind: 'sector' as const }] : []),
@@ -161,8 +148,8 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
         )}
       </Card>
 
-      <Card title="値動きの内訳" action={<HorizonPicker value={h} onChange={setH} />}>
-        <DecompBars d={s.dec[h]} />
+      <Card title={`値動きの内訳（${PERIOD_LABEL[p]}）`}>
+        {decOf(s, p) ? <DecompBars d={decOf(s, p)} /> : <p className="note">内訳は 3ヶ月 までです。下の表で期間ごとに見られます</p>}
         <table className="mini-table">
           <thead>
             <tr>

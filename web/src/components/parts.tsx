@@ -1,5 +1,6 @@
-import type { DataState, Horizon, Latest, Stock } from '../lib/data';
+import type { DataState, Latest, Stock } from '../lib/data';
 import { HORIZONS } from '../lib/data';
+import { decOf, retOf, usePeriod, type Period } from '../lib/period';
 import { businessDaysSince, dateJa, dir, HORIZON_LABEL, signed, timeJa } from '../lib/format';
 import { Chg, DecompInline, Pct, SignalBadge } from './ui';
 
@@ -45,7 +46,7 @@ export function Loading({ state }: { state: DataState }) {
 
 export function StockRow({
   s,
-  h,
+  p,
   onOpen,
   showSector,
   held,
@@ -53,7 +54,8 @@ export function StockRow({
   compact,
 }: {
   s: Stock;
-  h: Horizon;
+  /** 期間（省略時はアプリ全体の期間） */
+  p?: Period;
   onOpen: () => void;
   showSector?: boolean;
   held?: boolean;
@@ -62,7 +64,10 @@ export function StockRow({
   /** 内訳の行を出さず 2 行に詰める */
   compact?: boolean;
 }) {
-  const d = s.dec[h];
+  const global = usePeriod();
+  const per = p ?? global;
+  const d = decOf(s, per);
+  const r = retOf(s, per);
   return (
     <button type="button" className="row" onClick={onOpen}>
       <span className="row-main">
@@ -76,9 +81,9 @@ export function StockRow({
           <span className="num">{s.code}</span>
           {showSector && <span>{s.sector}</span>}
           <span className="num">¥{s.last.toLocaleString('ja-JP')}</span>
-          {rank != null && d && (
-            <span className="pct num" data-dir={dir(d.r)}>
-              {d.r >= 0 ? '+' : '−'}¥{Math.abs(Math.round(s.last - s.last / (1 + d.r))).toLocaleString('ja-JP')}
+          {rank != null && r != null && (
+            <span className="pct num" data-dir={dir(r)}>
+              {r >= 0 ? '+' : '−'}¥{Math.abs(Math.round(s.last - s.last / (1 + r))).toLocaleString('ja-JP')}
             </span>
           )}
           <SignalBadge label={s.signal.label} />
@@ -92,11 +97,11 @@ export function StockRow({
             ))}
           </span>
         ) : (
-          h !== '1' && <DecompInline d={d} />
+          per !== '1' && <DecompInline d={d} />
         )}
       </span>
       <span className="row-side">
-        <Chg v={d?.r} />
+        <Chg v={r} />
       </span>
     </button>
   );

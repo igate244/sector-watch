@@ -8,17 +8,12 @@ import { usePositions } from '../lib/useHoldings';
 import { Card, Chg, Count, Empty, Pct, Segmented, SettingsButton, SignalBadge, TopBar } from '../components/ui';
 import LineChart from '../components/LineChart';
 import type { Position } from '../lib/holdings';
-import { WINDOWS, type Win } from './SectorDetail';
-import { savedWin, saveWin, shortName } from './SectorsScreen';
+import { shortName } from './SectorsScreen';
+import { chartDays, PERIOD_LABEL, usePeriod } from '../lib/period';
 
 export default function HoldingsScreen({ state, nav }: { state: DataState; nav: Nav }) {
   const positions = usePositions();
   const [showClosed, setShowClosed] = useState(false);
-  const [win, setWin] = useState<Win>(savedWin);
-  const changeWin = (v: Win) => {
-    setWin(v);
-    saveWin(v);
-  };
   const d = state.data;
   const by = d ? stockByCode(d) : new Map();
 
@@ -124,7 +119,7 @@ export default function HoldingsScreen({ state, nav }: { state: DataState; nav: 
           </div>
           <div className="list">
             {sortedPriced.map((r) => (
-              <HoldingRow key={r.p.code} r={r} total={value} d={d!} nav={nav} open={opened === r.p.code} onToggle={() => setOpened(opened === r.p.code ? null : r.p.code)} win={win} onWin={changeWin} />
+              <HoldingRow key={r.p.code} r={r} total={value} d={d!} nav={nav} open={opened === r.p.code} onToggle={() => setOpened(opened === r.p.code ? null : r.p.code)} />
             ))}
             {open
               .filter((p) => !by.get(p.code))
@@ -189,8 +184,6 @@ function HoldingRow({
   nav,
   open,
   onToggle,
-  win,
-  onWin,
 }: {
   r: HoldRow;
   total: number;
@@ -198,10 +191,9 @@ function HoldingRow({
   nav: Nav;
   open: boolean;
   onToggle: () => void;
-  win: Win;
-  onWin: (w: Win) => void;
 }) {
   const { p, s } = r;
+  const per = usePeriod();
   const sector = d.sectors.find((x) => x.name === s.sector);
   return (
     <div className="hrow" data-open={open}>
@@ -235,10 +227,10 @@ function HoldingRow({
             <span className="num">評価額 ¥{yen(r.val)}</span>
             <SignalBadge label={s.signal.label} />
           </div>
-          <Segmented label="チャートの期間" value={win} onChange={onWin} options={WINDOWS} />
+          <p className="note" style={{ margin: '0 0 2px' }}>チャート: {PERIOD_LABEL[per]}（期間は下のバー）</p>
           <LineChart unit="¥"
             dates={d.dates}
-            days={Number(win)}
+            days={chartDays(per)}
             height={160}
             refLine={{ price: p.avg, label: '取得' }}
             series={[
