@@ -4,6 +4,7 @@ import { exportAll, importAll } from '../lib/db';
 import * as drive from '../lib/drive';
 import { Card, TopBar } from '../components/ui';
 import type { Nav } from '../App';
+import { CHANGELOG, VERSION } from '../lib/changelog';
 
 export default function SettingsScreen({ state, nav }: { state: DataState; nav: Nav }) {
   const d = state.data;
@@ -80,6 +81,8 @@ export default function SettingsScreen({ state, nav }: { state: DataState; nav: 
           <p className="muted">判断材料であって投資助言ではない。株価は東証の終値（夜間取引は含まない）。</p>
         </div>
       </Card>
+
+      <Changelog />
     </>
   );
 }
@@ -210,6 +213,35 @@ function Backup() {
         }}
       />
       {msg && <p className="small">{msg}</p>}
+    </Card>
+  );
+}
+
+/** バージョンと改定履歴。新しい順に 5 つ、「すべて見る」で全部 */
+function Changelog() {
+  const [all, setAll] = useState(false);
+  const list = all ? CHANGELOG : CHANGELOG.slice(0, 5);
+  const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
+  return (
+    <Card title="バージョンと改定履歴" action={<span className="num ver">v{VERSION}</span>}>
+      <ol className="changelog">
+        {list.map((r) => (
+          <li key={r.v}>
+            <span className="cl-v num">{r.v}</span>
+            <span className="cl-d num">{md(r.date)}</span>
+            <span className="cl-items">
+              {r.items.map((t) => (
+                <span key={t}>{t}</span>
+              ))}
+            </span>
+          </li>
+        ))}
+      </ol>
+      {CHANGELOG.length > 5 && (
+        <button type="button" className="link-btn block" onClick={() => setAll(!all)}>
+          {all ? '閉じる' : `すべて見る（${CHANGELOG.length} 件）`}
+        </button>
+      )}
     </Card>
   );
 }

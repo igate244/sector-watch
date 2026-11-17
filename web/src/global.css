@@ -622,3 +622,12 @@ button.card:active { background: var(--surface2); }
 .n225-row { background: var(--surface2); border-top: 1px dashed var(--line-strong); border-bottom: 1px dashed var(--line-strong); }
 .n225-row .row-title { font-size: 0.82rem; }
 .n225-row .srow-main { padding-top: 5px; padding-bottom: 5px; }
+
+/* 改定履歴 */
+.ver { font-weight: 700; font-size: 0.8rem; padding: 1px 7px; border-radius: 6px; background: var(--neutral); }
+.changelog { list-style: none; margin: 0; padding: 0; }
+.changelog li { display: grid; grid-template-columns: 52px 38px 1fr; gap: 6px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 0.8rem; align-items: baseline; }
+.changelog li:first-child { border-top: 0; padding-top: 0; }
+.cl-v { font-weight: 700; }
+.cl-d { color: var(--muted); font-size: 0.72rem; }
+.cl-items { display: flex; flex-direction: column; gap: 2px; color: var(--ink2); }
