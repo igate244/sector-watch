@@ -8,6 +8,7 @@
   GEMINI_MODEL        使うモデル（既定: gemini-3.5-flash-lite）
   NEWS_MAX_CALLS      1 回の実行で Gemini を呼ぶ回数の上限（市場概況 1＋銘柄。既定: 30）
   NEWS_MODE=reuse     Gemini を呼ばず、前回の判定を使い回す（push 時のビルド用）
+  NEWS_FORCE=1        同じ日に確認済みでも Gemini を呼ぶ（手動の Run workflow）
   PREV_URL            前回の latest.json の URL（判定の使い回しに使う）
 """
 
@@ -184,6 +185,10 @@ def main() -> None:
         print(f"[intraday] 失敗: {exc}")
 
     g = news.Gemini.from_env()
+    # 予約の 2 回目（予備）: 同じ日の Gemini 確認がもう済んでいれば呼ばない（手動の Run workflow は NEWS_FORCE=1 で呼ぶ）
+    if g and prev.get("news_asof") == asof and not os.environ.get("NEWS_FORCE"):
+        print(f"[news] {asof} の Gemini 確認は済んでいるので、今回は呼びません")
+        g = None
 
     # 市場概況を先に作る（銘柄の確認で呼び出し上限を使い切らないように）
     comment = prev.get("market_comment")
@@ -222,6 +227,8 @@ def main() -> None:
         "sectors": res["sectors"],
         "stocks": res["stocks"],
         "events": schedule,
+        # Gemini で確認した日。予備の予約実行で二重に呼ばないための印
+        "news_asof": asof if (g and g.used) else prev.get("news_asof"),
         "market_comment": comment,
         "watchlist": {
             "source": source,

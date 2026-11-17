@@ -8,7 +8,7 @@
 
 ## 公開の仕組み（大事）
 - **main に push した瞬間に公開される**（GitHub Actions → GitHub Pages）。push 時は Gemini を呼ばず前回の判定を使い回す
-- 平日 16:30 JST に自動で計算。手動は `update` ワークフローの Run workflow
+- 平日 16:41 JST に自動で計算（18:13 に予備。1 回目が済んでいれば Gemini は呼ばない）。手動は `update` ワークフローの Run workflow（Gemini を呼び直す）
 - 型エラー・テスト失敗があると Actions が赤くなり、公開されない（壊れたものは出ない）
 - 大きめの変更はブランチ＋PR にして、持ち主が GitHub アプリでマージする。小さな修正は頼まれれば main に直接でよい
 

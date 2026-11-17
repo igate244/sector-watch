@@ -3,7 +3,10 @@ name: update
 
 on:
   schedule:
-    - cron: "30 7 * * 1-5"   # 平日 16:30（日本時間）。GitHub の混雑で数十分遅れることがある
+    # 平日 16:41 と 18:13（日本時間）。GitHub は混む時刻（毎時 0・30 分）の予約を遅らせたり飛ばしたりするので、半端な分にして 2 回。
+    # 2 回目は予備: 1 回目で Gemini の確認が済んでいれば呼ばない（費用は増えない）
+    - cron: "41 7 * * 1-5"
+    - cron: "13 9 * * 1-5"
   push:
     branches: [main]         # 画面やロジックを直したら、そのまま公開し直す（Gemini は呼ばない）
   workflow_dispatch:         # スマホの GitHub アプリから「Run workflow」で手動実行もできる
@@ -39,6 +42,7 @@ jobs:
           NEWS_MAX_CALLS: ${{ vars.NEWS_MAX_CALLS || '30' }}
           # push のときは Gemini を呼ばず、公開中の前回の判定を使い回す
           NEWS_MODE: ${{ github.event_name == 'push' && 'reuse' || '' }}
+          NEWS_FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
           PREV_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/latest.json
         run: python -m pipeline.run --out web/public/data
 
