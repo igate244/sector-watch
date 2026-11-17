@@ -26,7 +26,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-from . import analysis, events, news, prices, watchlist
+from . import analysis, events, news, prices, track, watchlist
 
 ORDER = {"buy": 0, "caution": 1, "rise": 2, "watch": 3, "none": 4}
 
@@ -266,6 +266,12 @@ def main() -> None:
     (out / "latest.json").write_text(json.dumps(result, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     codes = sorted([c, n] for c, n in names.items())
     write_stock_intraday(out, rows, intra_raw, asof)
+    # 判定の成績表（過去 120 営業日に判定をやり直す）。成績タブを開いたときだけ読む
+    try:
+        tr = track.backtest(rows, closes, market, volumes)
+        (out / "track.json").write_text(json.dumps(tr, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[track] 失敗: {exc}")
     (out / "codes.json").write_text(json.dumps(codes, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     count = {k: sum(1 for s in res["stocks"] if s["signal"]["label"] == k) for k in ORDER}

@@ -225,3 +225,38 @@ export function useStockIntraday(code: string, asof: string | undefined): StockI
   }, [code, asof]);
   return v;
 }
+
+/* ------------------------------------------------------------------ 判定の成績表（成績タブを開いたときだけ読む） */
+
+export interface TrackStat {
+  n: number;
+  mean: number;
+  median: number;
+  win: number;
+}
+export interface Track {
+  asof: string;
+  from: string | null;
+  days: number;
+  horizons: number[];
+  base: Record<string, TrackStat | null>;
+  signals: Record<'buy' | 'rise' | 'caution' | 'watch', Record<string, TrackStat | null>>;
+  pending?: number;
+  recent: { date: string; code: string; name: string; sector: string; label: SignalLabel; fwd5: number | null; fwd20: number | null }[];
+}
+
+export function useTrack(asof: string | undefined): Track | null | 'error' {
+  const [v, setV] = useState<Track | null | 'error'>(null);
+  useEffect(() => {
+    let alive = true;
+    if (!asof) return;
+    fetch(url(`track.json?asof=${asof}`))
+      .then((r) => (r.ok ? (r.json() as Promise<Track>) : Promise.reject()))
+      .then((j) => alive && setV(j))
+      .catch(() => alive && setV('error'));
+    return () => {
+      alive = false;
+    };
+  }, [asof]);
+  return v;
+}
