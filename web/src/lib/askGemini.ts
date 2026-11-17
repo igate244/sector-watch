@@ -1,4 +1,4 @@
-import type { MarketEvent } from './data';
+import type { MarketEvent, Stock } from './data';
 
 /**
  * 予定（イベント・決算）を Gemini に聞くための質問文を作り、クリップボードに入れて Gemini を開く。
@@ -119,3 +119,62 @@ export function askGemini(prompt: string) {
   toast(ok ? '質問をコピーしました。Gemini の入力欄に貼り付けて送信してください' : 'コピーできませんでした');
   window.open(GEMINI_URL, '_blank', 'noopener');
 }
+
+/** 銘柄について「いま買ってよいか」をプロのトレーダーの目で聞く質問文。アプリの数字を材料として渡す */
+export function promptForStock(
+  s: Stock,
+  ctx: { sectorRel20: number | null; n225r20: number | null; held: { qty: number; avg: number } | null },
+): string {
+  const p = (x: number | null | undefined) => (x == null ? '不明' : `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}%`);
+  const d20 = s.dec['20'];
+  const d5 = s.dec['5'];
+  const facts = [
+    `銘柄: ${s.name}（東証 ${s.code}）／セクター: ${s.sector}`,
+    `株価: ${s.last.toLocaleString('ja-JP')} 円（${s.asof} 終値）、前日比 ${p(s.dec['1']?.r)}`,
+    `5 日の騰落率 ${p(d5?.r)}／20 日 ${p(d20?.r)}（同じ 20 日の日経平均 ${p(ctx.n225r20)}）`,
+    d20
+      ? `20 日の内訳: 日経平均につられた分 ${p(d20.m)}・業種（セクター）の分 ${p(d20.s)}・この銘柄だけの分 ${p(d20.i)}`
+      : '',
+    `60 日高値から ${p(s.dd60)}／1 年の値幅の中での位置 ${s.pos1y == null ? '不明' : `${Math.round(s.pos1y * 100)}%（0%＝1 年の安値、100%＝高値）`}`,
+    `日経平均への感応度 β ${s.beta}／20 日の下げの珍しさ（標準化） ${s.z20 ?? '不明'}`,
+    `セクター平均の 20 日の日経比 ${p(ctx.sectorRel20)}`,
+    `このアプリの判定: ${SIGNAL_JA[s.signal.label] ?? s.signal.label}${s.signal.reason ? `（${s.signal.reason}）` : ''}`,
+    s.rise?.hits?.length ? `上がり始めの条件で当てはまったもの: ${s.rise.hits.join('・')}` : '',
+    s.earnings?.next ? `次の決算: ${s.earnings.next}${s.earnings.next_est ? '（目安・未発表）' : ''}` : '',
+    ctx.held ? `私の保有: ${ctx.held.qty.toLocaleString('ja-JP')} 株、平均取得 ${Math.round(ctx.held.avg).toLocaleString('ja-JP')} 円` : '私はまだ持っていません',
+  ].filter(Boolean);
+  return [
+    `あなたは日本株を長く扱ってきたプロのトレーダーです。${s.name}（${s.code}）を「いま買ってよいか」について、あなたの意見を聞かせてください。`,
+    '',
+    'まず Google 検索で、次のことを最新の情報で調べてください（調べた日付と出典も書くこと）。',
+    '- 直近 1 ヶ月のニュース・適時開示（決算、業績予想の修正、受注、不祥事、格付けの変更など）',
+    '- 直近の決算の中身と、会社の業績予想・市場予想（コンセンサス）',
+    '- 株価の割安・割高（PER・PBR・配当利回りを同業他社や過去と比べて）',
+    '- チャートの形（25 日・75 日・200 日の移動平均との位置関係、直近の高値・安値、出来高）',
+    '- 業種全体と市場全体（日経平均・為替・米国株）の流れ',
+    '',
+    '私のアプリで計算した数字です（判断の材料にしてください）:',
+    ...facts.map((f) => `・${f}`),
+    '',
+    '次の形で答えてください。',
+    '1. 結論: 「買い」「押し目を待つ」「見送り」のどれか一つと、確信度（高・中・低）',
+    '2. 根拠: 買う理由と、買わない理由をそれぞれ 3 つまで。どれも調べた事実か上の数字に結びつけること',
+    '3. 買うなら: 入る値段の目安、損切りの目安（理由つき）、どれくらいの期間持つ想定か',
+    `4. ${ctx.held ? '持っている私へ: 買い増し・そのまま持つ・減らす のどれが妥当か' : 'まだ持っていない私へ: 最初に買うならどのくらいの量から始めるか（資金の何割など）'}`,
+    '5. この先 1 ヶ月で見ておくべき出来事や数字（決算日・イベントなど）',
+    '6. 3 行まとめ',
+    '',
+    '守ってほしいこと:',
+    '・事実と意見を分けて書く。調べてわからないことは「わからない」と書き、作らない',
+    '・専門用語にはかっこで一言の説明を付ける（株を始めたばかりの人にもわかるように）',
+    '・最終的な判断は私がする前提で、遠慮なく率直に',
+  ].join('\n');
+}
+
+const SIGNAL_JA: Record<string, string> = {
+  buy: '買い候補（地合いと業種につられて下げた）',
+  caution: '要注意（その銘柄だけの理由で下げている）',
+  rise: '初動候補（上がり始めの形）',
+  watch: '様子見',
+  none: '特になし',
+};
