@@ -57,7 +57,8 @@ def attach_news(stocks: list[dict], prev: dict, asof: str, market_r20: float | N
             judge = news.judge_rise if kind == "rise" else news.judge_stock
             st["news"] = judge(g, st, market_r20, asof) if g else None
             if st["news"] is None:
-                st["news"] = news.headlines(st["name"])
+                # 前回の結果があればそれを使う（毎回 RSS を叩くと断られる）。無いときだけ見出しを取りに行く
+                st["news"] = old if old and old.get("kind", "drop") == kind else news.headlines(st["name"])
         n = st.get("news")
         if n and n.get("bad_news") is True and st["signal"]["label"] in ("buy", "watch"):
             st["signal"] = {

@@ -221,12 +221,26 @@ def market_comment(g: Gemini, asof: str, n225_r1: float | None, movers: str) -> 
     return {"asof": asof, "text": text.strip()[:400], "sources": sources}
 
 
+_rss = {"blocked": False, "last": 0.0}
+
+
 def headlines(name: str, days: int = 14, limit: int = 5) -> dict | None:
-    """Google ニュースの RSS から見出しを拾う（判定はしない）。"""
+    """Google ニュースの RSS から見出しを拾う（判定はしない）。
+    続けて叩くと 429 で断られるので 1 件ごとに少し待つ。一度断られたら、その回はもう取りに行かない。"""
+    if _rss["blocked"]:
+        return None
+    wait = 1.2 - (time.time() - _rss["last"])
+    if wait > 0:
+        time.sleep(wait)
+    _rss["last"] = time.time()
     q = urllib.parse.quote(f"{name} 株")
     url = f"https://news.google.com/rss/search?q={q}&hl=ja&gl=JP&ceid=JP:ja"
     try:
         resp = requests.get(url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
+        if resp.status_code == 429:
+            _rss["blocked"] = True
+            print("[rss] Google ニュースに断られた（429）ので、この回は見出しを取りに行きません")
+            return None
         resp.raise_for_status()
         root = ET.fromstring(resp.content)
     except Exception as exc:  # noqa: BLE001
