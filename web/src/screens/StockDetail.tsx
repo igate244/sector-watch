@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Nav } from '../App';
-import { HORIZONS, type DataState, type Horizon } from '../lib/data';
+import { HORIZONS, useStockIntraday, type DataState, type Horizon } from '../lib/data';
 import { HORIZON_LABEL, signed, signedYen, yen } from '../lib/format';
 import { usePositions } from '../lib/useHoldings';
 import LineChart from '../components/LineChart';
@@ -8,14 +8,27 @@ import { Card, Chg, DecompBars, Empty, HorizonPicker, Pct, Segmented, SignalBadg
 import { Sources } from './TodayScreen';
 import { WINDOWS, type Win } from './SectorDetail';
 
+/** 1日・5日・20日は分足（詳細を開いたときに読む）、3ヶ月〜は日足 */
+type ChartWin = 'i1' | 'i5' | 'i20' | Win;
+const CHART_WINS: [ChartWin, string][] = [
+  ['i1', '1日'],
+  ['i5', '5日'],
+  ['i20', '20日'],
+  ...WINDOWS.filter(([w]) => w !== '20'),
+];
+const isIntra = (w: ChartWin): w is 'i1' | 'i5' | 'i20' => w.startsWith('i');
+const intraH = (w: 'i1' | 'i5' | 'i20') => w.slice(1) as Horizon;
+const STEP: Record<string, string> = { '5m': '5分足', '15m': '15分足', '60m': '60分足' };
+
 export default function StockDetail({ state, code, nav }: { state: DataState; code: string; nav: Nav }) {
-  const [win, setWin] = useState<Win>('60');
+  const [win, setWin] = useState<ChartWin>('60');
   const [h, setH] = useState<Horizon>('20');
   const positions = usePositions();
   const d = state.data;
   const s = d?.stocks.find((x) => x.code === code);
   const sector = d?.sectors.find((x) => x.name === s?.sector);
   const pos = positions?.find((p) => p.code === code);
+  const intra = useStockIntraday(code, d?.asof);
 
   if (!d || !s) {
     return (
@@ -86,16 +99,43 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
       </Card>
 
       <Card title="比較チャート">
-        <Segmented label="チャートの期間" value={win} onChange={setWin} options={WINDOWS} />
-        <LineChart
-          dates={d.dates}
-          days={Number(win)}
-          series={[
-            { label: shortLabel(s.name), values: s.series, kind: 'main' },
-            ...(sector ? [{ label: `${s.sector}平均`, values: sector.series, kind: 'sector' as const }] : []),
-            { label: '日経平均', values: d.market.n225.series, kind: 'market' },
-          ]}
-        />
+        <Segmented label="チャートの期間" value={win} onChange={setWin} options={CHART_WINS.filter(([w]) => !isIntra(w) || intra?.h[intraH(w)])} />
+        {isIntra(win) && intra?.h[intraH(win)] ? (
+          (() => {
+            const b = intra.h[intraH(win)]!;
+            const lastDay = b.t[b.t.length - 1].slice(0, 10);
+            const md = (x: string) => `${Number(x.slice(5, 7))}/${Number(x.slice(8, 10))}`;
+            const hm = (x: string) => (x.slice(0, 10) === lastDay ? x.slice(11, 16) : '前日');
+            return (
+              <>
+                <LineChart
+                  dates={b.t}
+                  days={b.t.length - 1}
+                  fmtX={win === 'i1' ? hm : md}
+                  fmtRead={(x) => `${md(x)} ${x.slice(11, 16)}`}
+                  series={[
+                    { label: shortLabel(s.name), values: b.stock, kind: 'main' },
+                    ...(b.sector ? [{ label: `${s.sector}平均`, values: b.sector, kind: 'sector' as const }] : []),
+                    ...(b.n225 ? [{ label: '日経平均', values: b.n225, kind: 'market' as const }] : []),
+                  ]}
+                />
+                <p className="note" style={{ margin: '2px 0 0' }}>
+                  {STEP[b.interval] ?? b.interval}・前の日の終値を 0%
+                </p>
+              </>
+            );
+          })()
+        ) : (
+          <LineChart
+            dates={d.dates}
+            days={isIntra(win) ? Number(intraH(win)) : Number(win)}
+            series={[
+              { label: shortLabel(s.name), values: s.series, kind: 'main' },
+              ...(sector ? [{ label: `${s.sector}平均`, values: sector.series, kind: 'sector' as const }] : []),
+              { label: '日経平均', values: d.market.n225.series, kind: 'market' },
+            ]}
+          />
+        )}
       </Card>
 
       <Card title="値動きの内訳" action={<HorizonPicker value={h} onChange={setH} />}>
