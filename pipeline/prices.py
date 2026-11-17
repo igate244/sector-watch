@@ -165,3 +165,32 @@ def download_intraday(tickers: list[str], until: str | None = None) -> dict[str,
         out[h] = block
         print(f"[intraday] {h} 日: {interval} × {len(closes)} 本")
     return out
+
+
+def fill_recent_closes(ticker: str, s: pd.Series, before: pd.Timestamp | None) -> pd.Series:
+    """日足の最新日が欠けているとき、5 分足の各日の最後の値で埋める（場中は Yahoo の日足から前日の行が抜けることがある）。
+    before より前の日だけ使う（場中の途中の値は使わない）。"""
+    try:
+        raw = yf.download(ticker, period="5d", interval="5m", auto_adjust=True, progress=False, prepost=False)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[prices] {ticker} の分足を取れませんでした: {exc}")
+        return s
+    if raw is None or raw.empty:
+        return s
+    c = raw["Close"]
+    if isinstance(c, pd.DataFrame):
+        c = c.iloc[:, 0]
+    c = c.dropna()
+    idx = pd.to_datetime(c.index)
+    idx = idx.tz_localize("UTC") if idx.tz is None else idx
+    c.index = idx.tz_convert("Asia/Tokyo")
+    last_by_day = c.groupby(c.index.date).last()
+    add = {}
+    for d, v in last_by_day.items():
+        day = pd.Timestamp(d)
+        if day > s.index[-1] and (before is None or day < before):
+            add[day] = float(v)
+    if not add:
+        return s
+    print(f"[prices] {ticker} の日足に無い日を分足の最後の値で補いました: {', '.join(f'{k:%m/%d}' for k in add)}")
+    return pd.concat([s, pd.Series(add)]).sort_index()

@@ -105,6 +105,10 @@ def main() -> None:
             again = again[again.index < cut]
         if again is not None and again.index[-1] >= latest:
             market = again
+        else:
+            market = prices.fill_recent_closes(prices.N225, market, cut)
+    if topix is not None and topix.index[-1] < market.index[-1]:
+        topix = prices.fill_recent_closes(prices.TOPIX_ETF, topix, cut)
     prev = load_prev(out)
     prev_asof = prev.get("asof", "")
     # 公開中のものが場中に作られた（＝途中の値）なら、それより古くなっても上書きしてよい
