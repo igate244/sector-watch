@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import type { Nav } from '../App';
 import { stockByCode, type DataState, type Latest, type Sector, type Stock } from '../lib/data';
 import { dir, pct, signed } from '../lib/format';
@@ -75,9 +75,12 @@ export default function SectorsScreen({ state, nav }: { state: DataState; nav: N
               {mode === 'rel' ? '赤＝日経より強い、青＝弱い' : '赤＝期間の始めより上、青＝下。セクターは構成銘柄の平均'}
             </p>
             <div className="list">
-              {rows.map(({ s, r, rel }) => (
+              {rows.map(({ s, r, rel }, i) => (
+                <Fragment key={s.name}>
+                {mode === 'abs' && m != null && (r ?? -9) < m && (i === 0 || (rows[i - 1].r ?? -9) >= m) && (
+                  <N225Row d={d} p={p} m={m} />
+                )}
                 <SectorRow
-                  key={s.name}
                   s={s}
                   r={r}
                   rel={rel}
@@ -88,6 +91,8 @@ export default function SectorsScreen({ state, nav }: { state: DataState; nav: N
                   onToggle={() => setOpened(opened === s.name ? null : s.name)}
                   nav={nav}
                 />
+                {mode === 'abs' && m != null && i === rows.length - 1 && (r ?? -9) >= m && <N225Row d={d} p={p} m={m} />}
+                </Fragment>
               ))}
             </div>
           </Card>
@@ -111,6 +116,22 @@ export default function SectorsScreen({ state, nav }: { state: DataState; nav: N
         </>
       )}
     </>
+  );
+}
+
+/** 株価のときに一覧へ差し込む日経平均の行。ここより上が日経に勝ち、下が負け */
+function N225Row({ d, p, m }: { d: Latest; p: Period; m: number }) {
+  return (
+    <div className="srow n225-row">
+      <div className="srow-main" style={{ cursor: 'default' }}>
+        <span className="srow-name">
+          <span className="row-title">日経平均</span>
+          <span className="srow-rel">ここより上が日経に勝ち</span>
+        </span>
+        <RelChart values={d.market.n225.series} market={d.market.n225.series} days={chartDays(p)} mode="abs" />
+        <Chg v={m} />
+      </div>
+    </div>
   );
 }
 

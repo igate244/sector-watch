@@ -617,3 +617,8 @@ button.card:active { background: var(--surface2); }
 .sec-switch { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
 .sec-switch .sec-n225 { padding: 0; border: 0; font-size: 0.74rem; white-space: nowrap; }
 .rel-market { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 2; opacity: 0.8; }
+
+.rel-market { stroke: var(--ink2); stroke-width: 1.4; stroke-dasharray: 4 2; opacity: 1; }
+.n225-row { background: var(--surface2); border-top: 1px dashed var(--line-strong); border-bottom: 1px dashed var(--line-strong); }
+.n225-row .row-title { font-size: 0.82rem; }
+.n225-row .srow-main { padding-top: 5px; padding-bottom: 5px; }
