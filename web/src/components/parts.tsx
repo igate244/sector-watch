@@ -8,12 +8,13 @@ export function Freshness({ state }: { state: DataState }) {
   const d = state.data;
   if (!d) return null;
   const late = businessDaysSince(d.asof);
-  const st = state.offline ? 'offline' : late >= 2 ? 'late' : 'ok';
+  const midday = d.session === 'midday';
+  const st = state.offline ? 'offline' : late >= 2 ? 'late' : midday ? 'midday' : 'ok';
   return (
     <div className="freshness" role="status" data-state={st}>
       <i className="dot-status" aria-hidden />
       <span>
-        <span className="num">{dateJa(d.asof)}</span> 終値
+        <span className="num">{dateJa(d.asof)}</span> {midday ? '前場・途中' : '終値'}
       </span>
       <span className="muted">· {timeJa(d.generated_at)} 計算</span>
       {state.offline && <span className="warn-text">· オフライン（前回の結果）</span>}

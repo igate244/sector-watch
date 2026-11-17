@@ -108,7 +108,9 @@ export interface Latest {
   events?: MarketEvent[];
   sectors: Sector[];
   stocks: Stock[];
-  market_comment: { asof: string; text: string; sources: Source[] } | null;
+  market_comment: { asof: string; session?: 'midday' | 'close'; text: string; sources: Source[] } | null;
+  /** midday＝昼の回（前場の途中経過）、close＝終値。古いデータには無い（＝終値） */
+  session?: 'midday' | 'close';
   watchlist: { source: 'repo' | 'sheet' | 'fallback'; edit_url: string | null; notes: string[] };
   run: { workflow_url: string | null; gemini_calls: number; gemini_errors: string[]; elapsed_sec: number };
 }

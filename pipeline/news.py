@@ -207,18 +207,20 @@ def judge_rise(g: Gemini, st: dict, market_r20: float | None, asof: str) -> dict
     }
 
 
-def market_comment(g: Gemini, asof: str, n225_r1: float | None, movers: str) -> dict | None:
+def market_comment(g: Gemini, asof: str, n225_r1: float | None, movers: str, midday: bool = False) -> dict | None:
+    when = "前場（午前の取引）" if midday else "この日"
     prompt = (
-        f"Google 検索で調べて答えてください。{asof} の東京株式市場について、"
-        f"日経平均の前日比は {'不明' if n225_r1 is None else f'{n225_r1 * 100:+.2f}%'}。\n"
+        f"Google 検索で調べて答えてください。{asof} の東京株式市場の{when}について、"
+        f"日経平均の前日比は {'不明' if n225_r1 is None else f'{n225_r1 * 100:+.2f}%'}"
+        f"{'（前場の終わり時点）' if midday else ''}。\n"
         f"手元のデータで動きが大きかった業種: {movers}\n"
-        "この日の相場の概況と、主な業種の動きの理由を、日本語 150 字以内でまとめてください。前置きは不要です。"
+        f"{when}の相場の概況と、主な業種の動きの理由を、日本語 150 字以内でまとめてください。前置きは不要です。"
     )
     out = g.ask(prompt)
     if not out:
         return None
     text, sources = out
-    return {"asof": asof, "text": text.strip()[:400], "sources": sources}
+    return {"asof": asof, "session": "midday" if midday else "close", "text": text.strip()[:400], "sources": sources}
 
 
 _rss = {"blocked": False, "last": 0.0}

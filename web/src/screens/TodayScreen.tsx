@@ -75,6 +75,7 @@ function MarketComment({ c }: { c: NonNullable<Latest['market_comment']> }) {
   return (
     <div className="comment">
       <button type="button" className="comment-btn" data-open={open} onClick={() => setOpen(!open)}>
+        {c.session === 'midday' && <span className="comment-tag">前場</span>}
         {c.text}
       </button>
       {open && <Sources list={c.sources} />}
