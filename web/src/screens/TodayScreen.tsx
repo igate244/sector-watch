@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import type { Nav } from '../App';
-import { HORIZONS, type DataState, type Horizon, type MarketBlock, type Stock } from '../lib/data';
+import { HORIZONS, type DataState, type Horizon, type Latest, type MarketBlock, type Stock } from '../lib/data';
 import { HORIZON_LABEL } from '../lib/format';
 import { useHeldCodes } from '../lib/useHoldings';
 import { Freshness, HeatTable, Loading, StockRow } from '../components/parts';
-import { Card, Count, Empty, Pct, Sparkline, TopBar } from '../components/ui';
+import { Card, Count, Empty, Pct, TopBar } from '../components/ui';
+import LineChart from '../components/LineChart';
 
 const FIRST = 6;
 
@@ -25,6 +26,7 @@ export default function TodayScreen({ state, h, nav }: { state: DataState; h: Ho
               <MarketKpi m={d.market.n225} label="日経平均" h={h} />
               {d.market.topix && <MarketKpi m={d.market.topix} label="TOPIX（1306）" h={h} />}
             </div>
+            <MarketChart d={d} h={h} />
             <div className="hz-strip" aria-label="日経平均の期間別騰落率">
               {HORIZONS.map((x) => (
                 <div key={x} data-on={x === h}>
@@ -134,8 +136,50 @@ function MarketKpi({ m, label, h }: { m: MarketBlock; label: string; h: Horizon 
       </div>
       <div className="kpi-val">{m.last?.toLocaleString('ja-JP', { maximumFractionDigits: 2 })}</div>
       <Pct v={m.ret[h]} />
-      <Sparkline values={m.series} days={h === '60' ? 120 : 60} />
     </div>
+  );
+}
+
+const STEP: Record<string, string> = { '5m': '5分足', '15m': '15分足', '60m': '60分足' };
+
+/** 日経平均と TOPIX を 1 枚に重ねる。1・5・20 日は分足、60 日は日足。期間の始め（前の日の終値）を 0% にそろえる */
+function MarketChart({ d, h }: { d: Latest; h: Horizon }) {
+  const intra = h === '60' ? undefined : d.market.intraday?.[h];
+  if (intra && intra.n225) {
+    const series = [
+      { label: '日経平均', values: intra.n225, kind: 'main' as const },
+      ...(intra.topix ? [{ label: 'TOPIX', values: intra.topix, kind: 'sector' as const }] : []),
+    ];
+    const lastDay = intra.t[intra.t.length - 1].slice(0, 10);
+    const hm = (s: string) => (s.slice(0, 10) === lastDay ? s.slice(11, 16) : '前日');
+    const md = (s: string) => `${Number(s.slice(5, 7))}/${Number(s.slice(8, 10))}`;
+    return (
+      <>
+        <LineChart
+          dates={intra.t}
+          days={intra.t.length - 1}
+          height={160}
+          series={series}
+          fmtX={h === '1' ? hm : md}
+          fmtRead={(s) => `${md(s)} ${s.slice(11, 16)}`}
+        />
+        <p className="note" style={{ margin: '2px 0 0' }}>
+          {STEP[intra.interval] ?? intra.interval}・前の日の終値を 0%
+        </p>
+      </>
+    );
+  }
+  // 分足がないとき（古いデータ・取得失敗）は日足
+  return (
+    <LineChart
+      dates={d.dates}
+      days={h === '1' ? 5 : Number(h)}
+      height={160}
+      series={[
+        { label: '日経平均', values: d.market.n225.series, kind: 'main' },
+        ...(d.market.topix ? [{ label: 'TOPIX', values: d.market.topix.series, kind: 'sector' as const }] : []),
+      ]}
+    />
   );
 }
 

@@ -86,6 +86,21 @@ def main() -> None:
         raise SystemExit("日経平均が取れなかったので中止します")
     market = closes.pop(prices.N225)
     topix = closes.pop(prices.TOPIX_ETF, None)
+
+    # 日経平均の最新日が欠けることがある（Yahoo 側の都合）。銘柄のほうが新しい日まであれば取り直す
+    latest = max((s.index[-1] for s in closes.values()), default=market.index[-1])
+    if market.index[-1] < latest:
+        print(f"[prices] 日経平均が {market.index[-1]:%Y-%m-%d} までしかないので取り直します（銘柄は {latest:%Y-%m-%d} まで）")
+        again = prices.download_closes([prices.N225]).get(prices.N225)
+        if again is not None and again.index[-1] >= latest:
+            market = again
+    prev = load_prev(out)
+    prev_asof = prev.get("asof", "")
+    if prev_asof and market.index[-1].strftime("%Y-%m-%d") < prev_asof:
+        # 古いデータで新しい結果を上書きしない（ここで止めれば、公開中のものがそのまま残る）
+        raise SystemExit(
+            f"日経平均の最新日 {market.index[-1]:%Y-%m-%d} が公開中の {prev_asof} より古いので中止します"
+        )
     for r in rows:
         if r["code"] + ".T" not in closes:
             notes.append(f"{r['code']} {r['name']} の株価が取れませんでした（上場廃止・コード違いの可能性）")
@@ -96,7 +111,15 @@ def main() -> None:
     n225 = analysis.market_block("日経平均", market, market.index)
     topix_block = analysis.market_block("TOPIX（1306 ETF）", topix, market.index) if topix is not None else None
 
-    prev = load_prev(out)
+    # 市場カードのチャート用の分足（1 日＝5 分足、5 日＝15 分足、20 日＝60 分足）。取れなくても続ける
+    intraday = {}
+    try:
+        for h, b in prices.download_intraday([prices.N225, prices.TOPIX_ETF]).items():
+            intraday[h] = {"interval": b["interval"], "t": b["t"],
+                           "n225": b.get(prices.N225), "topix": b.get(prices.TOPIX_ETF)}
+    except Exception as exc:  # noqa: BLE001
+        print(f"[intraday] 失敗: {exc}")
+
     g = news.Gemini.from_env()
 
     # 市場概況を先に作る（銘柄の確認で呼び出し上限を使い切らないように）
@@ -121,7 +144,7 @@ def main() -> None:
         "generated_at": datetime.now(news.JST).strftime("%Y-%m-%dT%H:%M+09:00"),
         "asof": asof,
         "dates": [d.strftime("%Y-%m-%d") for d in idx],
-        "market": {"n225": n225, "topix": topix_block},
+        "market": {"n225": n225, "topix": topix_block, "intraday": intraday},
         "sectors": res["sectors"],
         "stocks": res["stocks"],
         "market_comment": comment,

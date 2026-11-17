@@ -77,11 +77,19 @@ export interface MarketBlock {
   series: (number | null)[];
 }
 
+/** 市場カードの分足。期間 '1' '5' '20' → 5 分足・15 分足・60 分足。先頭は前の日の最後の値 */
+export interface Intraday {
+  interval: string;
+  t: string[];
+  n225: (number | null)[] | null;
+  topix: (number | null)[] | null;
+}
+
 export interface Latest {
   generated_at: string;
   asof: string;
   dates: string[];
-  market: { n225: MarketBlock; topix: MarketBlock | null };
+  market: { n225: MarketBlock; topix: MarketBlock | null; intraday?: Partial<Record<Horizon, Intraday>> };
   sectors: Sector[];
   stocks: Stock[];
   market_comment: { asof: string; text: string; sources: Source[] } | null;
