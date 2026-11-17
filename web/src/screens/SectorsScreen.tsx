@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import type { Nav } from '../App';
 import { stockByCode, type DataState, type Latest, type Sector, type Stock } from '../lib/data';
 import { dir, pct, signed } from '../lib/format';
@@ -6,7 +6,7 @@ import { useHeldCodes } from '../lib/useHoldings';
 import MultiChart from '../components/MultiChart';
 import RelChart from '../components/RelChart';
 import { Freshness, HeatTable, Loading } from '../components/parts';
-import { Card, Chg, SettingsButton, SignalBadge, TopBar } from '../components/ui';
+import { Card, Chg, Segmented, SettingsButton, SignalBadge, TopBar } from '../components/ui';
 import { chartDays, PERIOD_LABEL, usePeriod, winRet, type Period } from '../lib/period';
 
 /**
@@ -16,6 +16,16 @@ import { chartDays, PERIOD_LABEL, usePeriod, winRet, type Period } from '../lib/
 export default function SectorsScreen({ state, nav }: { state: DataState; nav: Nav }) {
   const p = usePeriod();
   const [heat, setHeat] = useState(false);
+  // 日経比（相対）か、株価そのものの動き（絶対）か。覚えておく
+  const [mode, setModeState] = useState<'rel' | 'abs'>(() => (localStorage.getItem('sw.secMode') === 'abs' ? 'abs' : 'rel'));
+  const setMode = (v: 'rel' | 'abs') => {
+    setModeState(v);
+    try {
+      localStorage.setItem('sw.secMode', v);
+    } catch {
+      /* 覚えられなくても切り替えはできる */
+    }
+  };
   const [opened, setOpened] = useState<string | null>(null);
   const d = state.data;
   const days = Number(p);
@@ -27,7 +37,7 @@ export default function SectorsScreen({ state, nav }: { state: DataState; nav: N
           const r = winRet(s.series, days);
           return { s, r, rel: r == null || m == null ? null : r - m };
         })
-        .sort((a, b) => (b.rel ?? -9) - (a.rel ?? -9))
+        .sort((a, b) => (mode === 'rel' ? (b.rel ?? -9) - (a.rel ?? -9) : (b.r ?? -9) - (a.r ?? -9)))
     : [];
 
   return (
@@ -38,31 +48,51 @@ export default function SectorsScreen({ state, nav }: { state: DataState; nav: N
       {d && (
         <>
           <Card>
+            <div className="sec-switch">
+              <Segmented
+                label="チャートの見かた"
+                value={mode}
+                onChange={setMode}
+                options={[
+                  ['rel', '日経比'],
+                  ['abs', '株価'],
+                ]}
+              />
+              <span className="sec-n225">
+                日経平均{' '}
+                <span className="pct num" data-dir={dir(m)}>
+                  {pct(m)}
+                </span>{' '}
+                <span className="muted">{PERIOD_LABEL[p]}</span>
+              </span>
+            </div>
             <div className="sec-head" aria-hidden>
-              <span>日経平均より強い順</span>
-              <span>日経比の推移</span>
+              <span>{mode === 'rel' ? '日経平均より強い順' : '上がった順'}</span>
+              <span>{mode === 'rel' ? '日経比の推移' : '株価の推移（破線＝日経）'}</span>
               <span>騰落率</span>
             </div>
-            <div className="sec-n225">
-              日経平均{' '}
-              <span className="pct num" data-dir={dir(m)}>
-                {pct(m)}
-              </span>
-              <span className="muted">（{PERIOD_LABEL[p]}）。赤＝日経より強い、青＝弱い</span>
-            </div>
+            <p className="note" style={{ margin: '0 0 4px' }}>
+              {mode === 'rel' ? '赤＝日経より強い、青＝弱い' : '赤＝期間の始めより上、青＝下。セクターは構成銘柄の平均'}
+            </p>
             <div className="list">
-              {rows.map(({ s, r, rel }) => (
+              {rows.map(({ s, r, rel }, i) => (
+                <Fragment key={s.name}>
+                {mode === 'abs' && m != null && (r ?? -9) < m && (i === 0 || (rows[i - 1].r ?? -9) >= m) && (
+                  <N225Row d={d} p={p} m={m} />
+                )}
                 <SectorRow
-                  key={s.name}
                   s={s}
                   r={r}
                   rel={rel}
                   d={d}
                   p={p}
+                  mode={mode}
                   open={opened === s.name}
                   onToggle={() => setOpened(opened === s.name ? null : s.name)}
                   nav={nav}
                 />
+                {mode === 'abs' && m != null && i === rows.length - 1 && (r ?? -9) >= m && <N225Row d={d} p={p} m={m} />}
+                </Fragment>
               ))}
             </div>
           </Card>
@@ -89,12 +119,29 @@ export default function SectorsScreen({ state, nav }: { state: DataState; nav: N
   );
 }
 
+/** 株価のときに一覧へ差し込む日経平均の行。ここより上が日経に勝ち、下が負け */
+function N225Row({ d, p, m }: { d: Latest; p: Period; m: number }) {
+  return (
+    <div className="srow n225-row">
+      <div className="srow-main" style={{ cursor: 'default' }}>
+        <span className="srow-name">
+          <span className="row-title">日経平均</span>
+          <span className="srow-rel">ここより上が日経に勝ち</span>
+        </span>
+        <RelChart values={d.market.n225.series} market={d.market.n225.series} days={chartDays(p)} mode="abs" />
+        <Chg v={m} />
+      </div>
+    </div>
+  );
+}
+
 function SectorRow({
   s,
   r,
   rel,
   d,
   p,
+  mode,
   open,
   onToggle,
   nav,
@@ -104,6 +151,7 @@ function SectorRow({
   rel: number | null;
   d: Latest;
   p: Period;
+  mode: 'rel' | 'abs';
   open: boolean;
   onToggle: () => void;
   nav: Nav;
@@ -120,7 +168,7 @@ function SectorRow({
             </b>
           </span>
         </span>
-        <RelChart values={s.series} market={d.market.n225.series} days={chartDays(p)} />
+        <RelChart values={s.series} market={d.market.n225.series} days={chartDays(p)} mode={mode} />
         <Chg v={r} />
       </button>
       {open && <SectorPanel s={s} d={d} p={p} nav={nav} />}
