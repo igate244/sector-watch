@@ -3,8 +3,8 @@ import type { Nav } from '../App';
 import { stockByCode, type DataState, type Horizon } from '../lib/data';
 import { dir, HORIZON_LABEL, signed } from '../lib/format';
 import LineChart from '../components/LineChart';
-import { Freshness, Loading } from '../components/parts';
-import { Chg, Segmented, TopBar } from '../components/ui';
+import { Freshness, HeatTable, Loading } from '../components/parts';
+import { Card, Chg, Segmented, SettingsButton, TopBar } from '../components/ui';
 import { WINDOWS, type Win } from './SectorDetail';
 
 /** チャートの期間はセクター一覧と詳細で共通。次に開いたときも覚えておく */
@@ -28,6 +28,7 @@ export function saveWin(v: Win) {
 
 export default function SectorsScreen({ state, h, nav }: { state: DataState; h: Horizon; nav: Nav }) {
   const [win, setWin] = useState<Win>(savedWin);
+  const [heat, setHeat] = useState(false);
   const d = state.data;
   const changeWin = (v: Win) => {
     setWin(v);
@@ -36,11 +37,20 @@ export default function SectorsScreen({ state, h, nav }: { state: DataState; h: 
 
   return (
     <>
-      <TopBar title="セクター" />
+      <TopBar title="セクター" right={<SettingsButton nav={nav} />} />
       <Freshness state={state} />
       <Loading state={state} />
       {d && (
         <>
+          <Card title="セクターの温度" action={<button type="button" className="link-btn" onClick={() => setHeat(!heat)}>{heat ? '閉じる' : '開く'}</button>}>
+            {heat ? (
+              <HeatTable d={d} onOpen={(name) => nav.open({ kind: 'sector', name })} />
+            ) : (
+              <p className="note" style={{ margin: 0 }}>
+                全セクターの 1・5・20・60 日を色の濃さで一覧（日経平均との差）
+              </p>
+            )}
+          </Card>
           <div className="chart-win">
             <span className="hz-label">チャート</span>
             <Segmented label="チャートの期間" value={win} onChange={changeWin} options={WINDOWS} />

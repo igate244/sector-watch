@@ -49,6 +49,7 @@ export function StockRow({
   showSector,
   held,
   rank,
+  compact,
 }: {
   s: Stock;
   h: Horizon;
@@ -57,6 +58,8 @@ export function StockRow({
   held?: boolean;
   /** ランキングの順位（付けると左に番号と値上がり幅を出す） */
   rank?: number;
+  /** 内訳の行を出さず 2 行に詰める */
+  compact?: boolean;
 }) {
   const d = s.dec[h];
   return (
@@ -79,7 +82,7 @@ export function StockRow({
           )}
           <SignalBadge label={s.signal.label} />
         </span>
-        {s.signal.label === 'rise' && s.rise && rank == null ? (
+        {compact ? null : s.signal.label === 'rise' && s.rise && rank == null ? (
           <span className="hits">
             {s.rise.hits.map((x, i) => (
               <span key={x} className={i < 2 ? 'hit-main' : ''}>

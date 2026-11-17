@@ -5,7 +5,7 @@ import { db } from '../lib/db';
 import { dir, signedYen, yen } from '../lib/format';
 import { decodeCsv, parseRakutenCsv, toTrade, type ParsedTrade } from '../lib/rakutenCsv';
 import { usePositions } from '../lib/useHoldings';
-import { Card, Chg, Count, Empty, Pct, Segmented, SignalBadge, TopBar } from '../components/ui';
+import { Card, Chg, Count, Empty, Pct, Segmented, SettingsButton, SignalBadge, TopBar } from '../components/ui';
 import LineChart from '../components/LineChart';
 import type { Position } from '../lib/holdings';
 import { WINDOWS, type Win } from './SectorDetail';
@@ -41,9 +41,12 @@ export default function HoldingsScreen({ state, nav }: { state: DataState; nav: 
       <TopBar
         title="保有"
         right={
-          <button type="button" className="link-btn" onClick={() => nav.open({ kind: 'trades', code: '', name: '', addNew: true })}>
-            ＋ 記録
-          </button>
+          <span className="topbar-right">
+            <button type="button" className="link-btn" onClick={() => nav.open({ kind: 'trades', code: '', name: '', addNew: true })}>
+              ＋ 記録
+            </button>
+            <SettingsButton nav={nav} />
+          </span>
         }
       />
       <Card>
