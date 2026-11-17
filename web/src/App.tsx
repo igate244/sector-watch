@@ -9,9 +9,10 @@ import StockDetail from './screens/StockDetail';
 import HoldingsScreen from './screens/HoldingsScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import SignalsScreen from './screens/SignalsScreen';
+import TrackScreen from './screens/TrackScreen';
 import TradesSheet from './screens/TradesSheet';
 
-type Tab = 'today' | 'signals' | 'sectors' | 'holdings';
+type Tab = 'today' | 'signals' | 'sectors' | 'holdings' | 'track';
 export type SigKind = 'buy' | 'rise' | 'caution';
 
 /** タブの上に重ねる画面。端末の戻るボタンで 1 段ずつ閉じる */
@@ -36,6 +37,7 @@ const TABS: [Tab, string][] = [
   ['signals', '候補'],
   ['sectors', 'セクター'],
   ['holdings', '保有'],
+  ['track', '成績'],
 ];
 
 /**
@@ -158,6 +160,7 @@ export default function App() {
   else if (tab === 'today') body = <TodayScreen state={state} h={h} nav={nav} />;
   else if (tab === 'signals') body = <SignalsScreen state={state} nav={nav} kind={sig} onKind={changeSig} />;
   else if (tab === 'sectors') body = <SectorsScreen state={state} nav={nav} />;
+  else if (tab === 'track') body = <TrackScreen state={state} nav={nav} />;
   else body = <HoldingsScreen state={state} nav={nav} />;
 
   return (

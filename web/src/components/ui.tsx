@@ -166,6 +166,7 @@ const ICONS: Record<string, ReactNode> = {
     </>
   ),
   back: <path d="M15 5l-7 7 7 7" />,
+  track: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   signals: (
     <>
       <circle cx="12" cy="12" r="8.5" />
