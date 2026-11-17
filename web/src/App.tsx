@@ -8,19 +8,24 @@ import SectorDetail from './screens/SectorDetail';
 import StockDetail from './screens/StockDetail';
 import HoldingsScreen from './screens/HoldingsScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import SignalsScreen from './screens/SignalsScreen';
 import TradesSheet from './screens/TradesSheet';
 
-type Tab = 'today' | 'sectors' | 'holdings' | 'settings';
+type Tab = 'today' | 'signals' | 'sectors' | 'holdings';
+export type SigKind = 'buy' | 'rise' | 'caution';
 
 /** タブの上に重ねる画面。端末の戻るボタンで 1 段ずつ閉じる */
 export type Overlay =
   | { kind: 'sector'; name: string }
   | { kind: 'stock'; code: string }
-  | { kind: 'trades'; code: string; name: string; addNew?: boolean };
+  | { kind: 'trades'; code: string; name: string; addNew?: boolean }
+  | { kind: 'settings' };
 
 export interface Nav {
   open: (o: Overlay) => void;
   back: () => void;
+  /** 候補タブを、指定の種類で開く（今日の件数タイルから） */
+  signals: (k: SigKind) => void;
 }
 
 const MARK = 'sector-watch-overlay';
@@ -28,9 +33,9 @@ const H_KEY = 'sw.horizon';
 
 const TABS: [Tab, string][] = [
   ['today', '今日'],
+  ['signals', '候補'],
   ['sectors', 'セクター'],
   ['holdings', '保有'],
-  ['settings', '設定'],
 ];
 
 /**
@@ -102,7 +107,18 @@ export default function App() {
     else setStack((s) => s.slice(0, -1));
   }, []);
 
-  const nav: Nav = { open, back };
+  const [sig, setSig] = useState<SigKind>(() => {
+    const v = localStorage.getItem('sw.sig');
+    return v === 'rise' || v === 'caution' ? v : 'buy';
+  });
+  const changeSig = (k: SigKind) => {
+    setSig(k);
+    try {
+      localStorage.setItem('sw.sig', k);
+    } catch {
+      /* 覚えられなくても切り替えはできる */
+    }
+  };
 
   const changeTab = (t: Tab) => {
     // 重ねた画面を閉じてからタブを切り替える（履歴も積んだ分だけ戻す）
@@ -114,6 +130,15 @@ export default function App() {
     }
     setTab(t);
     scrollToY(0);
+  };
+
+  const nav: Nav = {
+    open,
+    back,
+    signals: (k) => {
+      changeSig(k);
+      changeTab('signals');
+    },
   };
 
   const changeH = (v: Horizon) => {
@@ -129,14 +154,15 @@ export default function App() {
   else if (top?.kind === 'stock') body = <StockDetail state={state} code={top.code} nav={nav} />;
   else if (top?.kind === 'trades')
     body = <TradesSheet code={top.code} name={top.name} addNew={top.addNew} state={state} nav={nav} />;
+  else if (top?.kind === 'settings') body = <SettingsScreen state={state} nav={nav} />;
   else if (tab === 'today') body = <TodayScreen state={state} h={h} nav={nav} />;
+  else if (tab === 'signals') body = <SignalsScreen state={state} nav={nav} kind={sig} onKind={changeSig} />;
   else if (tab === 'sectors') body = <SectorsScreen state={state} h={h} nav={nav} />;
-  else if (tab === 'holdings') body = <HoldingsScreen state={state} nav={nav} />;
-  else body = <SettingsScreen state={state} />;
+  else body = <HoldingsScreen state={state} nav={nav} />;
 
   return (
     <div className="app">
-      <main className="content" key={top ? `${top.kind}:${'code' in top ? top.code : top.name}` : tab}>
+      <main className="content" key={top ? `${top.kind}:${'code' in top ? top.code : 'name' in top ? top.name : ''}` : tab}>
         {body}
       </main>
       {showHorizon && (

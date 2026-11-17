@@ -166,6 +166,19 @@ const ICONS: Record<string, ReactNode> = {
     </>
   ),
   back: <path d="M15 5l-7 7 7 7" />,
+  signals: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="0.8" fill="currentColor" />
+    </>
+  ),
+  gear: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+    </>
+  ),
 };
 
 export function Icon({ name }: { name: keyof typeof ICONS | string }) {
@@ -225,7 +238,7 @@ export function Card({ title, children, action }: { title?: ReactNode; children:
 
 export function TopBar({ title, onBack, right }: { title: ReactNode; onBack?: () => void; right?: ReactNode }) {
   return (
-    <header className="topbar">
+    <header className={onBack ? 'topbar sub' : 'topbar'}>
       {onBack ? (
         <button type="button" className="icon-btn" onClick={onBack} aria-label="戻る">
           <Icon name="back" />
@@ -241,4 +254,13 @@ export function TopBar({ title, onBack, right }: { title: ReactNode; onBack?: ()
 
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="empty">{children}</p>;
+}
+
+/** 右上の歯車。設定を重ねて開く */
+export function SettingsButton({ nav }: { nav: { open: (o: { kind: 'settings' }) => void } }) {
+  return (
+    <button type="button" className="icon-btn" onClick={() => nav.open({ kind: 'settings' })} aria-label="設定">
+      <Icon name="gear" />
+    </button>
+  );
 }

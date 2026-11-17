@@ -3,12 +3,13 @@ import type { DataState } from '../lib/data';
 import { exportAll, importAll } from '../lib/db';
 import * as drive from '../lib/drive';
 import { Card, TopBar } from '../components/ui';
+import type { Nav } from '../App';
 
-export default function SettingsScreen({ state }: { state: DataState }) {
+export default function SettingsScreen({ state, nav }: { state: DataState; nav: Nav }) {
   const d = state.data;
   return (
     <>
-      <TopBar title="設定" />
+      <TopBar title="設定" onBack={nav.back} />
 
       <Card title="銘柄リスト">
         <p className="small">

@@ -3,20 +3,17 @@ import type { Nav } from '../App';
 import { HORIZONS, type DataState, type Horizon, type Latest, type MarketBlock, type MarketEvent, type Stock } from '../lib/data';
 import { HORIZON_LABEL } from '../lib/format';
 import { useHeldCodes } from '../lib/useHoldings';
-import { Freshness, HeatTable, Loading, StockRow } from '../components/parts';
-import { Card, Count, Empty, Pct, Segmented, TopBar } from '../components/ui';
+import { Freshness, Loading, StockRow } from '../components/parts';
+import { Card, Count, Empty, Pct, Segmented, SettingsButton, TopBar } from '../components/ui';
 import LineChart from '../components/LineChart';
-
-const FIRST = 6;
 
 export default function TodayScreen({ state, h, nav }: { state: DataState; h: Horizon; nav: Nav }) {
   const held = useHeldCodes();
-  const [allBuy, setAllBuy] = useState(false);
   const d = state.data;
 
   return (
     <>
-      <TopBar title="今日" />
+      <TopBar title="今日" right={<SettingsButton nav={nav} />} />
       <Freshness state={state} />
       <Loading state={state} />
       {d && (
@@ -35,24 +32,19 @@ export default function TodayScreen({ state, h, nav }: { state: DataState; h: Ho
                 </div>
               ))}
             </div>
-            {d.market_comment && (
-              <div className="comment">
-                <p>{d.market_comment.text}</p>
-                <Sources list={d.market_comment.sources} />
-              </div>
-            )}
+            {d.market_comment && <MarketComment c={d.market_comment} />}
           </Card>
 
           <div className="summary">
-            <button type="button" data-kind="buy" onClick={() => jump('buy')}>
+            <button type="button" data-kind="buy" onClick={() => nav.signals('buy')}>
               <span className="k">買い候補</span>
               <span className="v">{count(d.stocks, 'buy')}</span>
             </button>
-            <button type="button" data-kind="caution" onClick={() => jump('caution')}>
+            <button type="button" data-kind="caution" onClick={() => nav.signals('caution')}>
               <span className="k">要注意</span>
               <span className="v">{count(d.stocks, 'caution')}</span>
             </button>
-            <button type="button" data-kind="rise" onClick={() => jump('rise')}>
+            <button type="button" data-kind="rise" onClick={() => nav.signals('rise')}>
               <span className="k">初動候補</span>
               <span className="v">{count(d.stocks, 'rise')}</span>
             </button>
@@ -64,71 +56,23 @@ export default function TodayScreen({ state, h, nav }: { state: DataState; h: Ho
 
           <Ranking stocks={d.stocks} h={h} held={held} nav={nav} />
 
-          <div id="sec-buy" />
-          <Card title={<>買い候補 <Count n={count(d.stocks, 'buy')} kind="buy" /></>} action={<span className="note" style={{ margin: 0 }}>20日・珍しい下げ順</span>}>
-            <p className="note">下げの大半が日経平均とセクター（業種）につられたもの。</p>
-            {(() => {
-              const list = sorted(d.stocks, 'buy');
-              if (!list.length) return <Empty>今日は買い候補がありません</Empty>;
-              return (
-                <>
-                  <div className="list">
-                    {(allBuy ? list : list.slice(0, FIRST)).map((s) => (
-                      <StockRow key={s.code} s={s} h="20" showSector held={held.has(s.code)} onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
-                    ))}
-                  </div>
-                  {list.length > FIRST && (
-                    <button type="button" className="link-btn block" onClick={() => setAllBuy((v) => !v)}>
-                      {allBuy ? '閉じる' : `残り ${list.length - FIRST} 件を見る`}
-                    </button>
-                  )}
-                </>
-              );
-            })()}
-          </Card>
-
-          <div id="sec-rise" />
-          <Card title={<>初動候補 <Count n={count(d.stocks, 'rise')} kind="rise" /></>} action={<span className="note" style={{ margin: 0 }}>上がり始めの形</span>}>
-            <p className="note">値幅が縮んだもみ合いのあと、60 日高値を抜けた銘柄。だましも多いので、抜けた高値を割ったら撤退が前提。</p>
-            {count(d.stocks, 'rise') ? (
-              <div className="list">
-                {d.stocks
-                  .filter((s) => s.signal.label === 'rise')
-                  .sort((a, b) => (b.rise?.score ?? 0) - (a.rise?.score ?? 0) || (b.rise?.vol_ratio ?? 0) - (a.rise?.vol_ratio ?? 0))
-                  .map((s) => (
-                    <StockRow key={s.code} s={s} h="20" showSector held={held.has(s.code)} onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
-                  ))}
-              </div>
-            ) : (
-              <Empty>今日は初動候補がありません</Empty>
-            )}
-          </Card>
-
-          <div id="sec-caution" />
-          <Card title={<>要注意 <Count n={count(d.stocks, 'caution')} kind="caution" /></>} action={<span className="note" style={{ margin: 0 }}>個別要因の下げ</span>}>
-            {count(d.stocks, 'caution') ? (
-              <div className="list">
-                {sorted(d.stocks, 'caution').map((s) => (
-                  <StockRow key={s.code} s={s} h="20" showSector held={held.has(s.code)} onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
-                ))}
-              </div>
-            ) : (
-              <Empty>個別要因で大きく下げている銘柄はありません</Empty>
-            )}
-          </Card>
-
-          <div id="sec-heat" />
-          <Card title="セクターの温度">
-            <HeatTable d={d} onOpen={(name) => nav.open({ kind: 'sector', name })} />
-          </Card>
         </>
       )}
     </>
   );
 }
 
-function jump(id: string) {
-  document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+/** 市場のひとこと（Gemini）。長いので 2 行に畳み、タップで全部 */
+function MarketComment({ c }: { c: NonNullable<Latest['market_comment']> }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="comment">
+      <button type="button" className="comment-btn" data-open={open} onClick={() => setOpen(!open)}>
+        {c.text}
+      </button>
+      {open && <Sources list={c.sources} />}
+    </div>
+  );
 }
 
 function MarketKpi({ m, label, h }: { m: MarketBlock; label: string; h: Horizon }) {
@@ -187,15 +131,23 @@ function MarketChart({ d, h }: { d: Latest; h: Horizon }) {
   );
 }
 
+/** 保有株。動きの大きい順に 5 つまで、1 行ずつ詰めて */
 function HeldToday({ stocks, h, nav }: { stocks: Stock[]; h: Horizon; nav: Nav }) {
+  const [all, setAll] = useState(false);
   if (!stocks.length) return null;
+  const list = [...stocks].sort((a, b) => Math.abs(b.dec[h]?.r ?? 0) - Math.abs(a.dec[h]?.r ?? 0));
   return (
-    <Card title={<>保有株 <Count n={stocks.length} /></>}>
+    <Card title={<>保有株 <Count n={stocks.length} /></>} action={<span className="note" style={{ margin: 0 }}>動きの大きい順</span>}>
       <div className="list">
-        {stocks.map((s) => (
-          <StockRow key={s.code} s={s} h={h} showSector onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
+        {(all ? list : list.slice(0, 5)).map((s) => (
+          <StockRow key={s.code} s={s} h={h} showSector compact onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
         ))}
       </div>
+      {list.length > 5 && (
+        <button type="button" className="link-btn block" onClick={() => setAll(!all)}>
+          {all ? '閉じる' : `残り ${list.length - 5} 件を見る`}
+        </button>
+      )}
     </Card>
   );
 }
@@ -207,7 +159,7 @@ function Ranking({ stocks, h, held, nav }: { stocks: Stock[]; h: Horizon; held: 
   const list = stocks
     .filter((s) => s.dec[h])
     .sort((a, b) => (side === 'up' ? b.dec[h]!.r - a.dec[h]!.r : a.dec[h]!.r - b.dec[h]!.r));
-  const shown = list.slice(0, all ? 30 : 10);
+  const shown = list.slice(0, all ? 30 : 5);
   return (
     <>
       <div id="sec-rank" />
@@ -225,17 +177,15 @@ function Ranking({ stocks, h, held, nav }: { stocks: Stock[]; h: Horizon; held: 
           />
         }
       >
-        <p className="note">
-          {HORIZON_LABEL[h]}・監視中の {stocks.length} 銘柄。円は 1 株あたりの値幅。内訳を見ると「つられて上げた」か「個別で上げた」かが分かる
-        </p>
+        <p className="note">{HORIZON_LABEL[h]}・{stocks.length} 銘柄中。円は 1 株あたりの値幅</p>
         <div className="list">
           {shown.map((s, i) => (
             <StockRow key={s.code} s={s} h={h} rank={i + 1} showSector held={held.has(s.code)} onOpen={() => nav.open({ kind: 'stock', code: s.code })} />
           ))}
         </div>
-        {list.length > 10 && (
+        {list.length > 5 && (
           <button type="button" className="link-btn block" onClick={() => setAll(!all)}>
-            {all ? '10 位までにする' : '30 位まで見る'}
+            {all ? '5 位までにする' : '30 位まで見る'}
           </button>
         )}
       </Card>
@@ -252,18 +202,21 @@ function Schedule({ events, held, nav }: { events: MarketEvent[]; held: Set<stri
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const daysTo = (iso: string) => Math.round((new Date(iso + 'T00:00:00').getTime() - today.getTime()) / 86400000);
   const upcoming = events.filter((e) => daysTo(e.date) >= 0);
-  const limit = more ? 120 : 14;
+  const limit = more ? 120 : 7;
   const shown = upcoming.filter((e) => daysTo(e.date) <= limit);
+  // 畳んでいるときは、直近の 3 日分（＋7 日以内の重要な予定）だけ
+  const days = [...new Set(shown.map((e) => e.date))];
+  const keepDays = more ? new Set(days) : new Set([...days.slice(0, 3), ...shown.filter((e) => e.level === '大').map((e) => e.date)]);
   const byDate = new Map<string, MarketEvent[]>();
-  for (const e of shown) byDate.set(e.date, [...(byDate.get(e.date) ?? []), e]);
+  for (const e of shown) if (keepDays.has(e.date)) byDate.set(e.date, [...(byDate.get(e.date) ?? []), e]);
   const nextBig = upcoming.find((e) => e.level === '大');
   return (
     <>
       <div id="sec-schedule" />
-      <Card title={<>予定 <Count n={shown.length} /></>} action={<span className="note" style={{ margin: 0 }}>{more ? '先まで' : '2 週間'}</span>}>
+      <Card title={<>予定 <Count n={shown.length} /></>} action={<span className="note" style={{ margin: 0 }}>{more ? '4 ヶ月先まで' : '1 週間'}</span>}>
         {!shown.length ? (
           <Empty>
-            2 週間以内の予定はありません
+            1 週間以内の予定はありません
             {nextBig && `。次の大きな予定は ${Number(nextBig.date.slice(5, 7))}/${Number(nextBig.date.slice(8, 10))} ${nextBig.title}`}
           </Empty>
         ) : (
@@ -318,7 +271,7 @@ function Schedule({ events, held, nav }: { events: MarketEvent[]; held: Set<stri
           </div>
         )}
         <button type="button" className="link-btn block" onClick={() => setMore(!more)}>
-          {more ? '2 週間にする' : '先の予定も見る'}
+          {more ? '1 週間にする' : '先の予定も見る'}
         </button>
       </Card>
     </>
@@ -327,10 +280,6 @@ function Schedule({ events, held, nav }: { events: MarketEvent[]; held: Set<stri
 
 function count(list: Stock[], label: Stock['signal']['label']) {
   return list.filter((s) => s.signal.label === label).length;
-}
-
-function sorted(list: Stock[], label: Stock['signal']['label']) {
-  return list.filter((s) => s.signal.label === label).sort((a, b) => (a.z20 ?? 0) - (b.z20 ?? 0));
 }
 
 export function Sources({ list }: { list: { title: string; url: string; date?: string }[] }) {
