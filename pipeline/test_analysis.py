@@ -72,6 +72,13 @@ def test_earnings_estimate_not_promoted() -> None:
     e = events.earnings(rows, prev, date(2026, 11, 17))
     assert e["6503"].get("next_est") is True, e
     assert not [x for x in events.build(rows, e, date(2026, 11, 17)) if x["kind"] == "earnings"]
+    # 出どころの印が無い next（古いデータ）も信用しない
+    prev = [{"code": "6503", "earnings": {"last": "2026-10-30", "next": "2027-01-29"}}]
+    assert events.earnings(rows, prev, date(2026, 11, 17))["6503"].get("next_est") is True
+    # JPX で確かめた予定日は引き継ぐ
+    prev = [{"code": "6503", "earnings": {"next": "2026-11-20", "kind": "第2四半期", "confirmed": True}}]
+    e = events.earnings(rows, prev, date(2026, 11, 17))
+    assert e["6503"]["next"] == "2026-11-20" and not e["6503"].get("next_est"), e
 
 
 if __name__ == "__main__":

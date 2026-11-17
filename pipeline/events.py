@@ -135,13 +135,16 @@ def earnings(rows: list[dict], prev_stocks: list[dict], today: date) -> dict[str
     for r in rows:
         code = r["code"]
         known = dict(prev.get(code, {}))
-        if known.pop("next_est", None):
-            known.pop("next", None)  # 前回の「目安」は本当の予定日ではないので捨てて計算し直す
+        # 前回の next は JPX で確かめた日付（confirmed）だけ引き継ぐ。目安や出どころ不明は捨てて計算し直す
+        if known.pop("next_est", None) or not known.get("confirmed"):
+            known.pop("next", None)
+            known.pop("kind", None)
         hit = jpx.get(code)
         if hit:
             if hit["date"] >= today.isoformat():
                 known["next"] = hit["date"]
                 known["kind"] = hit["kind"]
+                known["confirmed"] = True
             else:
                 known["last"] = max(known.get("last") or "", hit["date"])
         # 予定日が過ぎたら「前回」に回す
@@ -149,6 +152,8 @@ def earnings(rows: list[dict], prev_stocks: list[dict], today: date) -> dict[str
             known["last"] = max(known.get("last") or "", known["next"])
             known.pop("next")
             known.pop("kind", None)
+        if not known.get("next"):
+            known.pop("confirmed", None)
         if not known.get("next") and known.get("last"):
             est = date.fromisoformat(known["last"]) + timedelta(days=91)
             while est < today:
