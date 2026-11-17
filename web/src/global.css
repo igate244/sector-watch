@@ -576,3 +576,6 @@ button.card:active { background: var(--surface2); }
 
 .freshness[data-state='midday'] .dot-status { background: var(--warn); }
 .comment-tag { font-size: 0.62rem; font-weight: 700; padding: 0 5px; margin-right: 5px; border-radius: 4px; background: color-mix(in oklab, var(--warn) 16%, var(--surface)); color: var(--warn); vertical-align: 1px; }
+
+.price-pill rect { fill: var(--ink); }
+.price-pill text { fill: var(--surface); font-family: var(--num); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }

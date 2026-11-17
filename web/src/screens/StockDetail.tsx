@@ -131,7 +131,7 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
             const hm = (x: string) => (x.slice(0, 10) === lastDay ? x.slice(11, 16) : '前日');
             return (
               <>
-                <LineChart
+                <LineChart unit="¥"
                   dates={b.t}
                   days={b.t.length - 1}
                   fmtX={win === 'i1' ? hm : md}
@@ -149,7 +149,7 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
             );
           })()
         ) : (
-          <LineChart
+          <LineChart unit="¥"
             dates={d.dates}
             days={isIntra(win) ? Number(intraH(win)) : Number(win)}
             series={[

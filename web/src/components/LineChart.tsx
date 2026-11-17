@@ -28,9 +28,11 @@ interface Props {
   fmtRead?: (s: string) => string;
   /** 横の参照線（例: 平均取得単価）。main の線と同じ基準で 0% からの位置に直して描く */
   refLine?: { price: number; label: string };
+  /** 触れた位置の縦線の上に出す main の値の頭に付ける記号（株価なら ¥）。main が無ければ出さない */
+  unit?: string;
 }
 
-const PAD = { top: 8, right: 64, bottom: 22, left: 40 };
+const PAD = { top: 24, right: 64, bottom: 22, left: 40 };
 
 function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] {
   const ref = useRef<T>(null);
@@ -50,7 +52,7 @@ function niceStep(span: number): number {
   return [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= raw) ?? raw;
 }
 
-export default function LineChart({ dates, series, days, height = 220, refLine, fmtX = mdLabel, fmtRead = dateJa }: Props) {
+export default function LineChart({ dates, series, days, height = 220, refLine, unit = '', fmtX = mdLabel, fmtRead = dateJa }: Props) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
 
@@ -110,6 +112,12 @@ export default function LineChart({ dates, series, days, height = 220, refLine, 
   };
 
   const at = hover ?? view.length - 1;
+  // 縦線の上に出す、触れた日の main の値（株価・指数そのもの）
+  const mainRaw = series.find((s) => s.kind === 'main')?.values.slice(start)[at] ?? null;
+  const priceText =
+    mainRaw == null ? '' : `${unit}${mainRaw.toLocaleString('ja-JP', { maximumFractionDigits: mainRaw >= 1000 ? 0 : 1 })}`;
+  const pillW = priceText.length * 7 + 14;
+  const pillX = Math.max(PAD.left, Math.min(PAD.left + iw - pillW, x(at) - pillW / 2));
   const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     const px = e.clientX - r.left;
@@ -198,6 +206,14 @@ export default function LineChart({ dates, series, days, height = 220, refLine, 
         {hover != null && (
           <g>
             <line x1={x(at)} x2={x(at)} y1={PAD.top} y2={PAD.top + ih} className="crosshair" />
+            {priceText && (
+              <g className="price-pill">
+                <rect x={pillX} y={2} width={pillW} height={18} rx={5} />
+                <text x={pillX + pillW / 2} y={15} textAnchor="middle">
+                  {priceText}
+                </text>
+              </g>
+            )}
             {lines.map((l) =>
               l.pts[at] == null ? null : (
                 <circle key={l.label} cx={x(at)} cy={y(l.pts[at] as number)} r={4} className={`dot dot-${l.kind}`} />

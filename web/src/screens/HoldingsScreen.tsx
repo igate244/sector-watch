@@ -236,7 +236,7 @@ function HoldingRow({
             <SignalBadge label={s.signal.label} />
           </div>
           <Segmented label="チャートの期間" value={win} onChange={onWin} options={WINDOWS} />
-          <LineChart
+          <LineChart unit="¥"
             dates={d.dates}
             days={Number(win)}
             height={160}
