@@ -203,7 +203,7 @@ function SectorPanel({ s, d, p, nav }: { s: Sector; d: Latest; p: Period; nav: N
                 {shortName(st.name)}
                 {held.has(st.code) && <span className="held-tag">保有</span>}
               </span>
-              <SignalBadge label={st.signal.label} />
+              <SignalBadge label={st.signal.label} days={st.signal.days} capped={st.signal.capped} />
               <span className="pct num" data-dir={dir(r)}>
                 {pct(r)}
               </span>

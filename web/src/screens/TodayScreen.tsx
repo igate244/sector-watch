@@ -41,14 +41,17 @@ export default function TodayScreen({ state, nav }: { state: DataState; nav: Nav
             <button type="button" data-kind="buy" onClick={() => nav.signals('buy')}>
               <span className="k">買い候補</span>
               <span className="v">{count(d.stocks, 'buy')}</span>
+              <NewCount stocks={d.stocks} k="buy" />
             </button>
             <button type="button" data-kind="caution" onClick={() => nav.signals('caution')}>
               <span className="k">要注意</span>
               <span className="v">{count(d.stocks, 'caution')}</span>
+              <NewCount stocks={d.stocks} k="caution" />
             </button>
             <button type="button" data-kind="rise" onClick={() => nav.signals('rise')}>
               <span className="k">初動候補</span>
               <span className="v">{count(d.stocks, 'rise')}</span>
+              <NewCount stocks={d.stocks} k="rise" />
             </button>
           </div>
 
@@ -346,4 +349,10 @@ export function Sources({ list }: { list: { title: string; url: string; date?: s
       ))}
     </ul>
   );
+}
+
+/** その判定に今日なった銘柄の数 */
+function NewCount({ stocks, k }: { stocks: { signal: { label: string; days?: number } }[]; k: string }) {
+  const n = stocks.filter((x) => x.signal.label === k && x.signal.days === 1).length;
+  return n ? <span className="new-n">うち新 {n}</span> : null;
 }

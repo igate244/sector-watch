@@ -236,6 +236,22 @@ def main() -> None:
     for st in res["stocks"]:
         st["earnings"] = earn.get(st["code"]) or None
 
+    # 判定の成績表（過去 120 営業日に判定をやり直す）。成績タブを開いたときだけ読む。
+    # ついでに「今の判定がいつから続いているか」を各銘柄に付ける
+    tr = None
+    try:
+        tr = track.backtest(rows, closes, market, volumes)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[track] 失敗: {exc}")
+    since = (tr or {}).pop("since", {}) if tr else {}
+    for st in res["stocks"]:
+        x = since.get(st["code"])
+        if x and x["label"] == st["signal"]["label"]:
+            st["signal"]["since"] = x["date"]
+            st["signal"]["days"] = x["days"]
+            if x["capped"]:
+                st["signal"]["capped"] = True
+
     repo = os.environ.get("GITHUB_REPOSITORY", "")
     result = {
         "generated_at": datetime.now(news.JST).strftime("%Y-%m-%dT%H:%M+09:00"),
@@ -266,12 +282,8 @@ def main() -> None:
     (out / "latest.json").write_text(json.dumps(result, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     codes = sorted([c, n] for c, n in names.items())
     write_stock_intraday(out, rows, intra_raw, asof)
-    # 判定の成績表（過去 120 営業日に判定をやり直す）。成績タブを開いたときだけ読む
-    try:
-        tr = track.backtest(rows, closes, market, volumes)
+    if tr:
         (out / "track.json").write_text(json.dumps(tr, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    except Exception as exc:  # noqa: BLE001
-        print(f"[track] 失敗: {exc}")
     (out / "codes.json").write_text(json.dumps(codes, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     count = {k: sum(1 for s in res["stocks"] if s["signal"]["label"] == k) for k in ORDER}

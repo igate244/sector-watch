@@ -78,7 +78,22 @@ def backtest(rows: list[dict], closes: dict[str, pd.Series], market: pd.Series,
                                    "fwd20": None if f20 is None else round(f20, 4)})
         prev = labels
 
+    # 今の判定が何日前から続いているか（code -> 始まった日・何日目）。最大でさかのぼった日数まで
+    since: dict[str, dict] = {}
+    if daily:
+        for code, lab in daily[-1][1].items():
+            if lab not in LABELS:
+                continue
+            n = 0
+            for d, labels in reversed(daily):
+                if labels.get(code) != lab:
+                    break
+                n += 1
+            start = daily[len(daily) - n][0]
+            since[code] = {"label": lab, "date": start.strftime("%Y-%m-%d"), "days": n, "capped": n == len(daily)}
+
     out = {
+        "since": since,
         "asof": idx[-1].strftime("%Y-%m-%d"),
         "from": daily[0][0].strftime("%Y-%m-%d") if daily else None,
         "days": len(daily),

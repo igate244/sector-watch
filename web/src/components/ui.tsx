@@ -15,13 +15,26 @@ export function Pct({ v, digits = 1, strong }: { v: number | null | undefined; d
 
 const ICON: Record<SignalLabel, string> = { buy: '◎', caution: '⚠', rise: '↗', watch: '…', none: '' };
 
-export function SignalBadge({ label }: { label: SignalLabel }) {
+export function SignalBadge({ label, days, capped }: { label: SignalLabel; days?: number; capped?: boolean }) {
   if (label === 'none') return null;
   return (
     <span className={`badge badge-${label}`}>
       <span aria-hidden>{ICON[label]}</span> {SIGNAL_LABEL[label]}
+      {days === 1 ? (
+        <span className="badge-new">新</span>
+      ) : days ? (
+        <span className="badge-days num">{capped ? '長期' : `${days}日目`}</span>
+      ) : null}
     </span>
   );
+}
+
+/** 判定がいつから続いているか（詳細画面用） */
+export function sinceText(s: { since?: string; days?: number; capped?: boolean }): string | null {
+  if (!s.since || !s.days) return null;
+  const md = `${Number(s.since.slice(5, 7))}/${Number(s.since.slice(8, 10))}`;
+  if (s.days === 1) return '今日から';
+  return s.capped ? `${md} より前から続いている` : `${md} から（${s.days} 営業日目）`;
 }
 
 /**
