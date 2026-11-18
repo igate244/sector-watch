@@ -10,6 +10,7 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  { v: '0.19.1', date: '2026-11-18', items: ['セクターの銘柄から個別の画面へ行くボタンを分かりやすく（「詳細」と、選んだ銘柄の大きなボタン）'] },
   {
     v: '0.19.0',
     date: '2026-11-18',

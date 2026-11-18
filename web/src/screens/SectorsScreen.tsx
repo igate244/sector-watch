@@ -183,6 +183,7 @@ function SectorPanel({ s, d, p, nav }: { s: Sector; d: Latest; p: Period; nav: N
   const held = useHeldCodes();
   const by = stockByCode(d);
   const members = s.codes.map((c) => by.get(c)).filter((x): x is Stock => !!x);
+  const selSt = sel ? by.get(sel) : undefined;
   const list = members.map((st) => ({ st, r: winRet(st.series, days) })).sort((a, b) => (b.r ?? -9) - (a.r ?? -9));
   return (
     <div className="srow-panel">
@@ -195,6 +196,17 @@ function SectorPanel({ s, d, p, nav }: { s: Sector; d: Latest; p: Period; nav: N
         selected={sel}
         onSelect={setSel}
       />
+      {selSt ? (
+        <button type="button" className="sel-go" onClick={() => nav.open({ kind: 'stock', code: selSt.code })}>
+          <span className="sel-go-name">{selSt.name}</span>
+          <span className="sel-go-t">の詳しい画面へ</span>
+          <span className="sel-go-arrow" aria-hidden>
+            ›
+          </span>
+        </button>
+      ) : (
+        <p className="sel-hint">銘柄かチャートの線を押すと強調。「詳細」で個別の画面へ</p>
+      )}
       <div className="mlist">
         {list.map(({ st, r }) => (
           <div key={st.code} className="mitem" data-sel={sel === st.code} data-dim={sel != null && sel !== st.code}>
@@ -209,7 +221,8 @@ function SectorPanel({ s, d, p, nav }: { s: Sector; d: Latest; p: Period; nav: N
               </span>
             </button>
             <button type="button" className="mitem-go" onClick={() => nav.open({ kind: 'stock', code: st.code })} aria-label={`${st.name}の詳細`}>
-              ›
+              <span aria-hidden>›</span>
+              <span className="mitem-go-t">詳細</span>
             </button>
           </div>
         ))}
