@@ -86,7 +86,7 @@ export function StockRow({
               {r >= 0 ? '+' : '−'}¥{Math.abs(Math.round(s.last - s.last / (1 + r))).toLocaleString('ja-JP')}
             </span>
           )}
-          <SignalBadge label={s.signal.label} />
+          <SignalBadge label={s.signal.label} days={s.signal.days} capped={s.signal.capped} />
         </span>
         {compact ? null : s.signal.label === 'rise' && s.rise && rank == null ? (
           <span className="hits">

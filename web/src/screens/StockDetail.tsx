@@ -4,7 +4,7 @@ import { HORIZON_LABEL, signed, signedYen, yen } from '../lib/format';
 import { usePositions } from '../lib/useHoldings';
 import LineChart from '../components/LineChart';
 import { askGemini, promptForEarnings, promptForStock } from '../lib/askGemini';
-import { Card, Chg, DecompBars, Empty, Pct, SignalBadge, TopBar } from '../components/ui';
+import { Card, Chg, DecompBars, Empty, Pct, SignalBadge, sinceText, TopBar } from '../components/ui';
 import { Sources } from './TodayScreen';
 import { chartDays, decOf, PERIOD_LABEL, usePeriod } from '../lib/period';
 
@@ -72,7 +72,10 @@ export default function StockDetail({ state, code, nav }: { state: DataState; co
               </div>
             )}
           </div>
-          <SignalBadge label={s.signal.label} />
+          <span className="sig-since">
+            <SignalBadge label={s.signal.label} />
+            {sinceText(s.signal) && <span className="muted num">{sinceText(s.signal)}</span>}
+          </span>
         </div>
         <div className="kpi-grid">
           <div>

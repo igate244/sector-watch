@@ -631,3 +631,9 @@ button.card:active { background: var(--surface2); }
 .cl-v { font-weight: 700; }
 .cl-d { color: var(--muted); font-size: 0.72rem; }
 .cl-items { display: flex; flex-direction: column; gap: 2px; color: var(--ink2); }
+
+/* 判定がいつからか */
+.badge-new { margin-left: 5px; padding: 0 5px; border-radius: 4px; background: var(--accent); color: #fff; font-size: 0.68rem; font-weight: 700; }
+.badge-days { margin-left: 5px; font-size: 0.68rem; font-weight: 600; opacity: 0.75; }
+.sig-since { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 0.72rem; }
+.summary .new-n { display: block; font-size: 0.72rem; color: var(--muted); margin-top: 2px; }

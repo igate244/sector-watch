@@ -225,7 +225,7 @@ function HoldingRow({
             <span className="num">{s.code}</span>
             <span>{s.sector}</span>
             <span className="num">評価額 ¥{yen(r.val)}</span>
-            <SignalBadge label={s.signal.label} />
+            <SignalBadge label={s.signal.label} days={s.signal.days} capped={s.signal.capped} />
           </div>
           <p className="note" style={{ margin: '0 0 2px' }}>チャート: {PERIOD_LABEL[per]}（期間は下のバー）</p>
           <LineChart unit="¥"

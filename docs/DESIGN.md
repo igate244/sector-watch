@@ -119,7 +119,7 @@ market: { n225, topix, intraday{1|5|20: {interval, t[], n225[], topix[]}} }
                                    … 騰落率・終値の推移。intraday は市場カードのチャート用の分足（5分・15分・60分、先頭は前日の終値）
 sectors[]: { name, ret{h}, dec{h:{m,s}}, beta, series[], codes[] }
 stocks[]:  { code, name, sector, memo, last, ret{h}, dec{h:{m,s,i}}, beta,
-             dd60, pos1y, z20, signal{label, reason}, rise{score, hits[], near_high, ext50, vol_ratio}|null,
+             dd60, pos1y, z20, signal{label, reason, since?, days?, capped?}（since＝今の判定が始まった日、days＝何営業日目。成績表と同じやり直し計算から）, rise{score, hits[], near_high, ext50, vol_ratio}|null,
              news{kind: drop|rise, bad_news, good_news, …}, series[] }
 market_comment: { text, sources[] }
 watchlist: { source: sheet|fallback, edit_url, errors[] }

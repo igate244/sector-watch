@@ -56,7 +56,14 @@ export interface Stock {
   dd60: number | null;
   pos1y: number | null;
   z20: number | null;
-  signal: { label: SignalLabel; reason: string };
+  signal: {
+    label: SignalLabel;
+    reason: string;
+    /** 今の判定が始まった日（YYYY-MM-DD）と何日目か。capped はさかのぼれる限界（約半年）より前から */
+    since?: string;
+    days?: number;
+    capped?: boolean;
+  };
   rise?: Rise | null;
   /** 決算。next_est が true なら「前回＋約 3 ヶ月」の目安 */
   earnings?: { last?: string; next?: string; next_est?: boolean; kind?: string } | null;
