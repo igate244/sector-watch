@@ -25,6 +25,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      skip: ${{ steps.calc.outputs.skip }}
     steps:
       - uses: actions/checkout@v5
 
@@ -37,6 +39,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: 株価の取得と計算
+        id: calc
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}       # 未設定なら Google ニュースの見出しだけ
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
@@ -49,12 +52,14 @@ jobs:
         run: python -m pipeline.run --out web/public/data
 
       - uses: actions/setup-node@v5
+        if: steps.calc.outputs.skip != 'true'   # データが古くて見送ったときは何もしない
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
 
       - name: 画面のビルド（型チェック込み）
+        if: steps.calc.outputs.skip != 'true'
         working-directory: web
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
@@ -64,6 +69,7 @@ jobs:
           npm run build
 
       - uses: actions/upload-pages-artifact@v5
+        if: steps.calc.outputs.skip != 'true'   # データが古くて見送ったときは何もしない
         with:
           path: web/dist
 
@@ -81,6 +87,7 @@ jobs:
 
   deploy:
     needs: build
+    if: needs.build.outputs.skip != 'true'   # 見送った回は公開し直さない
     runs-on: ubuntu-latest
     environment:
       name: github-pages
