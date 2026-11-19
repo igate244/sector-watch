@@ -22,14 +22,14 @@ function Conf({ n }: { n: number | null }) {
   );
 }
 
-/** 買い候補の上位 10 を Gemini に 1 つずつ調べさせた見解と、その中のお勧め上位 3 */
+/** 買い候補の上位 7 を Gemini に 1 つずつ調べさせた見解と、その中のお勧め上位 3 */
 export function PicksCard({ d, nav }: { d: Data; nav: Nav }) {
   const [open, setOpen] = useState(false);
   const pk = d.picks;
   if (!pk) {
     return (
       <Card title="Gemini の見立て">
-        <p className="muted small">平日の夜（19:13）の計算で、買い候補の上位 10 銘柄を Gemini が 1 つずつ調べ、お勧めの上位 3 銘柄を選びます。</p>
+        <p className="muted small">平日の夜（19:13）の計算で、買い候補の上位 7 銘柄（珍しい下げの順）を Gemini が 1 つずつ調べ、お勧めの上位 3 銘柄を選びます。</p>
       </Card>
     );
   }

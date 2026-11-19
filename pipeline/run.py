@@ -230,7 +230,7 @@ def main() -> None:
     # 銘柄ごとのニュース確認は夜の回だけ（昼・夕方は前回の結果を使う）
     attach_news(res["stocks"], prev, asof, n225["ret"]["20"], g if mode == "news" else None)
 
-    # Gemini の見立て（買い候補の上位 10 を 1 つずつ＋上位 3 を選ぶ）。夜の回だけ
+    # Gemini の見立て（買い候補の上位 7 を 1 つずつ＋上位 3 を選ぶ）。夜の回だけ
     pk = prev.get("picks")
     if mode == "news":
         try:

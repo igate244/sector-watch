@@ -116,7 +116,7 @@ export interface Latest {
   sectors: Sector[];
   stocks: Stock[];
   market_comment: { asof: string; session?: 'midday' | 'close'; text: string; sources: Source[] } | null;
-  /** Gemini の見立て（夜の回。買い候補の上位 10 を 1 つずつ＋上位 3） */
+  /** Gemini の見立て（夜の回。買い候補の上位 7 を 1 つずつ＋上位 3） */
   picks?: Picks | null;
   /** midday＝昼の回（前場の途中経過）、close＝終値。古いデータには無い（＝終値） */
   session?: 'midday' | 'close';
