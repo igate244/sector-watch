@@ -647,3 +647,27 @@ button.card:active { background: var(--surface2); }
 .badge-days { margin-left: 5px; font-size: 0.68rem; font-weight: 600; opacity: 0.75; }
 .sig-since { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 0.72rem; }
 .summary .new-n { display: block; font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+/* Gemini の見立て */
+.pk-when { font-size: 0.72rem; color: var(--muted); }
+.pk-top { list-style: none; margin: 0 0 4px; padding: 0; }
+.pk-top li + li { border-top: 1px solid var(--line); }
+.pk-top-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; width: 100%; padding: 10px 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.pk-rank { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-weight: 800; font-size: 0.85rem; }
+.pk-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pk-name { font-weight: 700; font-size: 0.92rem; }
+.pk-reason { font-size: 0.78rem; color: var(--ink2); line-height: 1.45; }
+.pk-side { display: flex; align-items: center; gap: 6px; }
+.pk-go { color: var(--accent); font-size: 1.3rem; font-weight: 700; }
+.pk-overall { margin: 4px 0 2px; padding: 8px 10px; border-radius: 8px; background: var(--surface2); color: var(--ink2); }
+.pk-all { display: flex; flex-direction: column; gap: 0; margin-top: 4px; }
+.pk-item { padding: 10px 0; border-top: 1px solid var(--line); }
+.pk-item-head { display: flex; justify-content: space-between; align-items: center; width: 100%; border: 0; background: none; color: inherit; padding: 0; font: inherit; text-align: left; cursor: pointer; }
+.pk-conf { display: block; margin-top: 3px; font-size: 0.68rem; color: var(--accent); letter-spacing: 1px; }
+.pk-conf-off { color: var(--line); }
+.pk-sum { margin: 4px 0; font-size: 0.82rem; line-height: 1.5; }
+.pk-list { margin: 2px 0; padding-left: 1.1em; font-size: 0.76rem; color: var(--ink2); line-height: 1.5; }
+.pk-risk li::marker { content: '⚠ '; }
+.pk-src { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 4px 0 0; font-size: 0.7rem; }
+.pk-src a { color: var(--accent); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pk-note { margin: 8px 0 0; font-size: 0.68rem; color: var(--muted); }

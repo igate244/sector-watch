@@ -116,10 +116,18 @@ export interface Latest {
   sectors: Sector[];
   stocks: Stock[];
   market_comment: { asof: string; session?: 'midday' | 'close'; text: string; sources: Source[] } | null;
+  /** Gemini の見立て（夜の回。買い候補の上位 10 を 1 つずつ＋上位 3） */
+  picks?: Picks | null;
   /** midday＝昼の回（前場の途中経過）、close＝終値。古いデータには無い（＝終値） */
   session?: 'midday' | 'close';
   watchlist: { source: 'repo' | 'sheet' | 'fallback'; edit_url: string | null; notes: string[] };
-  run: { workflow_url: string | null; gemini_calls: number; gemini_errors: string[]; elapsed_sec: number };
+  run: {
+    workflow_url: string | null;
+    gemini_calls: number;
+    gemini_tokens?: [number, number];
+    gemini_errors: string[];
+    elapsed_sec: number;
+  };
 }
 
 /* ------------------------------------------------------------------ 読み込み */
@@ -266,4 +274,27 @@ export function useTrack(asof: string | undefined): Track | null | 'error' {
     };
   }, [asof]);
   return v;
+}
+
+export type PickView = '買い' | '様子見' | '見送り';
+export interface PickItem {
+  code: string;
+  name: string;
+  sector: string;
+  view: PickView | null;
+  conf: number | null;
+  summary: string;
+  reasons: string[];
+  risks: string[];
+  sources: Source[];
+  searched: boolean;
+}
+export interface Picks {
+  asof: string;
+  model: string;
+  generated_at?: string;
+  items: PickItem[];
+  top3: { code: string; reason: string }[];
+  overall: string;
+  usage: { calls: number; in: number; out: number; yen: number | null } | null;
 }

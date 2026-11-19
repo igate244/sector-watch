@@ -35,6 +35,9 @@ class Gemini:
         self.used = 0
         self.errors: list[str] = []
         self.searched = False
+        # 使ったトークン数（費用の目安を画面に出す用）
+        self.tokens_in = 0
+        self.tokens_out = 0
 
     @classmethod
     def from_env(cls) -> "Gemini | None":
@@ -43,16 +46,17 @@ class Gemini:
             return None
         return cls(key, os.environ.get("GEMINI_MODEL", "").strip(), int(os.environ.get("NEWS_MAX_CALLS", "30")))
 
-    def ask(self, prompt: str) -> tuple[str, list[dict]] | None:
-        """検索つきで質問する。戻り値は（本文, 出典）。上限に達したか失敗したら None。"""
+    def ask(self, prompt: str, search: bool = True) -> tuple[str, list[dict]] | None:
+        """質問する（既定は Google 検索つき）。戻り値は（本文, 出典）。上限に達したか失敗したら None。"""
         if self.left <= 0:
             return None
         self.left -= 1
-        body = {
+        body: dict = {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "tools": [{"google_search": {}}],
             "generationConfig": {"temperature": 0.2},
         }
+        if search:
+            body["tools"] = [{"google_search": {}}]
         for attempt in range(2):
             try:
                 resp = requests.post(
@@ -72,7 +76,11 @@ class Gemini:
                     raise RuntimeError(f"HTTP {resp.status_code}: {detail[:300]}")
                 resp.raise_for_status()
                 self.used += 1
-                cand = resp.json()["candidates"][0]
+                js = resp.json()
+                um = js.get("usageMetadata", {}) or {}
+                self.tokens_in += int(um.get("promptTokenCount", 0) or 0)
+                self.tokens_out += int(um.get("candidatesTokenCount", 0) or 0) + int(um.get("thoughtsTokenCount", 0) or 0)
+                cand = js["candidates"][0]
                 text = "".join(p.get("text", "") for p in cand.get("content", {}).get("parts", []))
                 meta = cand.get("groundingMetadata", {}) or {}
                 chunks = meta.get("groundingChunks", []) or []
