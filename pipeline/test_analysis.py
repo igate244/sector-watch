@@ -81,7 +81,24 @@ def test_earnings_estimate_not_promoted() -> None:
     assert e["6503"]["next"] == "2026-11-20" and not e["6503"].get("next_est"), e
 
 
+
+def test_picks_parse():
+    """Gemini の見立ての読み取り（形が少し崩れていても拾う）"""
+    from . import picks
+    v = picks._parse_view(
+        "見解: 様子見\n自信: ４\n要約: 業種につられた下げだが決算前で慎重に\n"
+        "根拠:\n・PBR1倍割れ\n・受注は堅調\nリスク:\n・11/27 の決算\n"
+    )
+    assert v["view"] == "様子見" and v["conf"] == 4, v
+    assert v["reasons"] == ["PBR1倍割れ", "受注は堅調"] and v["risks"] == ["11/27 の決算"], v
+    st = [{"signal": {"label": "buy"}, "z20": z, "code": c} for c, z in (("A", -1.0), ("B", -3.0), ("C", None))]
+    st.append({"signal": {"label": "watch"}, "z20": -9, "code": "D"})
+    assert [s["code"] for s in picks.top_buys(st, 2)] == ["B", "A"]
+
+
 if __name__ == "__main__":
     main()
     test_earnings_estimate_not_promoted()
     print("決算の目安: OK")
+    test_picks_parse()
+    print("Gemini の見立ての読み取り: OK")

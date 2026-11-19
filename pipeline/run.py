@@ -26,7 +26,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-from . import analysis, events, news, prices, track, watchlist
+from . import analysis, events, news, picks, prices, track, watchlist
 
 ORDER = {"buy": 0, "caution": 1, "rise": 2, "watch": 3, "none": 4}
 
@@ -230,6 +230,14 @@ def main() -> None:
     # 銘柄ごとのニュース確認は夜の回だけ（昼・夕方は前回の結果を使う）
     attach_news(res["stocks"], prev, asof, n225["ret"]["20"], g if mode == "news" else None)
 
+    # Gemini の見立て（買い候補の上位 7 を 1 つずつ＋上位 3 を選ぶ）。夜の回だけ
+    pk = prev.get("picks")
+    if mode == "news":
+        try:
+            pk = picks.run(res["stocks"], n225["ret"]["20"], asof, pk)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[picks] 失敗: {exc}")
+
     # 決算発表予定日と大きな予定（取れなくても続ける）
     today = datetime.now(news.JST).date()
     try:
@@ -271,6 +279,7 @@ def main() -> None:
         # 前場の途中経過（midday）か、終値（close）か
         "session": session,
         "market_comment": comment,
+        "picks": pk,
         "watchlist": {
             "source": source,
             # 画面の「GitHub で開く」ボタン用
@@ -280,6 +289,7 @@ def main() -> None:
         "run": {
             "workflow_url": f"https://github.com/{repo}/actions/workflows/update.yml" if repo else None,
             "gemini_calls": g.used if g else 0,
+            "gemini_tokens": [g.tokens_in, g.tokens_out] if g else [0, 0],
             "gemini_errors": (g.errors[:3] if g else []),
             "elapsed_sec": round(time.time() - started, 1),
         },

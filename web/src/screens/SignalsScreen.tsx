@@ -4,6 +4,7 @@ import type { DataState, Stock } from '../lib/data';
 import { useHeldCodes } from '../lib/useHoldings';
 import { Freshness, Loading, StockRow } from '../components/parts';
 import { Card, Empty, Segmented, SettingsButton, TopBar } from '../components/ui';
+import { PicksCard } from '../components/Picks';
 
 /** 候補: 買い候補・初動候補・要注意を切り替えて 1 つずつ見る（今日の画面から分けた） */
 export default function SignalsScreen({
@@ -54,6 +55,7 @@ export default function SignalsScreen({
               ]}
             />
           </div>
+          {kind === 'buy' && <PicksCard d={d} nav={nav} />}
           <Card>
             <p className="note">
               {kind === 'buy' && '20 日の下げの大半が、日経平均とセクター（業種）につられたもの。珍しい下げの順。'}

@@ -41,6 +41,13 @@ export default function SettingsScreen({ state, nav }: { state: DataState; nav: 
             最終計算 {d.generated_at.replace('T', ' ').slice(0, 16)}（{d.run.elapsed_sec} 秒）
             <br />
             Gemini の呼び出し {d.run.gemini_calls} 回
+            {d.picks?.usage && d.picks.asof === d.asof && (
+              <>
+                <br />
+                Gemini の見立て（{d.picks.model}） {d.picks.usage.calls} 回
+                {d.picks.usage.yen != null && `・目安 約 ${Math.round(d.picks.usage.yen)} 円`}
+              </>
+            )}
             {!!d.run.gemini_errors.length && <span className="warn-text"><br />Gemini のエラー: {d.run.gemini_errors[0]}</span>}
           </p>
         )}

@@ -38,7 +38,7 @@ curl -sL https://igate244.github.io/sector-watch/data/codes.json  -o web/public/
 ## 守ること
 - **保有株・取引の記録は端末内（IndexedDB）だけ。** リポジトリ・latest.json・銘柄リストに保有情報を入れない
   （このリポジトリと公開ページは誰でも見られる）
-- Gemini の呼び出し回数を増やす変更は、費用の見込みを持ち主に伝えてから。上限は `NEWS_MAX_CALLS`（既定 30）
+- Gemini の呼び出し回数を増やす変更は、費用の見込みを持ち主に伝えてから。上限は `NEWS_MAX_CALLS`（既定 30）。これとは別に、夜の「Gemini の見立て」（`pipeline/picks.py`）が gemini-4-hydrogen を 1 晩 8 回（買い候補上位 7＋上位 3 選び）。費用は Google AI Pro の Cloud クレジット（月 $10）から
 - `web/src/lib/db.ts` の `version(n)` は書き換えない。スキーマ変更は新しい version を追記する
 - 色: 上昇＝赤（`--up`）、下落＝青（`--down`）。色だけに頼らず ▲▼ か ± を必ず付ける
 - チャートの線は 3 本まで、軸は 1 本。凡例と線の端のラベルを付ける

@@ -170,3 +170,13 @@ trades: id, date, code, name, side(buy|sell), price, qty, account(NISA|特定|�
 画面下のバーで「1日・5日・1ヶ月・3ヶ月・6ヶ月・1年」を切り替え、今日・セクター・保有・銘柄詳細・セクター詳細が同じ期間で表示する（web/src/lib/period.ts）。
 1ヶ月＝20 営業日、3ヶ月＝60、6ヶ月＝120、1年＝245。内訳（日経・業種・個別）は 3ヶ月まで（6ヶ月・1年は騰落率だけ）。
 チャートの足は 1日＝5 分足、5日＝15 分足、1ヶ月＝60 分足（分足があれば）、3ヶ月〜＝日足。候補（20 日固定）と成績（5・20 日後）は期間に関係しない。
+
+
+## Gemini の見立て（v0.20〜）
+
+- 夜（news）の回だけ。買い候補を候補タブと同じ並び（z20 の小さい順）で上位 7 銘柄
+- 1 銘柄ずつ gemini-4-hydrogen に Google 検索つきで質問 → 見解（買い／様子見／見送り）・自信 1〜5・要約・根拠・リスク・出典
+- 7 件の見解をまとめてもう 1 回（検索なし）→ お勧め上位 3（見送りは選ばない）と総評
+- 1 晩 8 回。同じ日に済んでいれば呼ばない（手動の Run workflow は呼び直す）。push 時は前回の結果を使う
+- latest.json の `picks`: {asof, model, items[], top3[{code, reason}], overall, usage{calls, in, out, yen}}
+- 環境変数: PICKS_MODEL（既定 gemini-4-hydrogen）、PICKS_N（既定 7）
