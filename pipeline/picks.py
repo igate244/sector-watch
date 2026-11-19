@@ -1,9 +1,9 @@
 """
-Gemini の見立て: 買い候補の上位 7 銘柄を 1 つずつ Gemini（Hydrogen）に調べさせ、
-最後にその 7 件の見解からお勧めの上位 3 銘柄を選ばせる。夜の回だけ（1 晩 8 回）。
+Gemini の見立て: 買い候補の上位 10 銘柄を 1 つずつ Gemini（Hydrogen）に調べさせ、
+最後にその 10 件の見解からお勧めの上位 3 銘柄を選ばせる。夜の回だけ（1 晩 11 回）。
 
 PICKS_MODEL      使うモデル（既定: gemini-4-hydrogen）
-PICKS_N          調べる銘柄の数（既定: 7）
+PICKS_N          調べる銘柄の数（既定: 10）
 PICKS_THINKING   考える量（low・medium・high・xhigh。既定: medium）
 """
 
@@ -133,7 +133,7 @@ def run(stocks: list[dict], n225_r20: float | None, asof: str, prev: dict | None
         print(f"[picks] {asof} の見立ては済んでいるので、今回は呼びません")
         return prev
     model = os.environ.get("PICKS_MODEL", "").strip() or DEFAULT_MODEL
-    n = int(os.environ.get("PICKS_N", "7"))
+    n = int(os.environ.get("PICKS_N", "10"))
     targets = top_buys(stocks, n)
     if not targets:
         return {"asof": asof, "model": model, "items": [], "top3": [], "overall": "今日は買い候補がありません", "usage": None}
