@@ -168,10 +168,15 @@ def main() -> None:
     gen = str(prev.get("generated_at", ""))
     prev_partial = gen[:10] == prev_asof and gen[11:16] < "15:45"
     if prev_asof and not prev_partial and market.index[-1].strftime("%Y-%m-%d") < prev_asof:
-        # 古いデータで新しい結果を上書きしない（ここで止めれば、公開中のものがそのまま残る）
-        raise SystemExit(
-            f"日経平均の最新日 {market.index[-1]:%Y-%m-%d} が公開中の {prev_asof} より古いので中止します"
-        )
+        # 古いデータで新しい結果を上書きしない。失敗（赤）にはせず「今回は見送り」で終える。
+        # 公開中のものがそのまま残る。Yahoo の日足は早朝などに前日分が抜けることがある
+        print(f"[skip] 日経平均の最新日 {market.index[-1]:%Y-%m-%d} が公開中の {prev_asof} より古いので、今回は公開を見送ります")
+        gh_out = os.environ.get("GITHUB_OUTPUT")
+        if gh_out:
+            with open(gh_out, "a", encoding="utf-8") as f:
+                f.write("skip=true\n")
+            return
+        raise SystemExit(1)
     for r in rows:
         if r["code"] + ".T" not in closes:
             notes.append(f"{r['code']} {r['name']} の株価が取れませんでした（上場廃止・コード違いの可能性）")
