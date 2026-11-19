@@ -8,7 +8,7 @@
 
 ## 公開の仕組み（大事）
 - **main に push した瞬間に公開される**（GitHub Actions → GitHub Pages）。push 時は Gemini を呼ばず前回の判定を使い回す
-- 平日 3 回自動で計算（JST）: 11:43 昼＝前場の途中経過（Gemini はひとことだけ）／16:41 夕方＝終値（Gemini なし）／19:13 夜＝ニュース確認（予備 20:37、済んでいれば呼ばない）。種類は `RUN_MODE`。手動の Run workflow は夜と同じ（Gemini を呼び直す）
+- 平日 3 回自動で計算（JST）: 11:43 昼＝前場の途中経過（Gemini はひとことだけ）／16:41 夕方＝終値（Gemini なし）／19:13 夜＝ニュース確認。**起こしているのは cron-job.org**（GitHub の schedule は遅れ・飛びが多くてやめた）。workflow_dispatch の入力 `mode`（midday/close/news）と `force` で種類を渡す。手動の Run workflow は既定で夜＋Gemini 呼び直し
 - 型エラー・テスト失敗があると Actions が赤くなり、公開されない（壊れたものは出ない）
 - 大きめの変更はブランチ＋PR にして、持ち主が GitHub アプリでマージする。小さな修正は頼まれれば main に直接でよい
 

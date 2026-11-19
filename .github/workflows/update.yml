@@ -2,18 +2,25 @@
 name: update
 
 on:
-  schedule:
-    # 平日 3 回（日本時間）。GitHub は混む時刻（毎時 0・30 分）の予約を遅らせたり飛ばしたりするので半端な分にする
-    - cron: "43 2 * * 1-5"    # 11:43 昼: 前場の途中経過（Gemini はひとこと 1 回）
-    - cron: "41 7 * * 1-5"    # 16:41 夕方: 終値で計算（Gemini なし）
-    - cron: "13 10 * * 1-5"   # 19:13 夜: ニュース確認とひとこと（大引け後の発表が出そろってから）
-    - cron: "37 11 * * 1-5"   # 20:37 夜の予備: 19:13 で確認済みなら Gemini は呼ばない
+  # 定時の計算は cron-job.org（外の無料サービス）から workflow_dispatch で起こす。
+  # GitHub の schedule は数時間遅れたり飛ばされたりしたのでやめた（2026-11）。
+  # 平日（日本時間）: 11:43 midday ／ 16:41 close ／ 19:13 news（force=false）
   push:
     branches: [main]         # 画面やロジックを直したら、そのまま公開し直す（Gemini は呼ばない）
-  workflow_dispatch:         # スマホの GitHub アプリから「Run workflow」で手動実行もできる
+  workflow_dispatch:         # cron-job.org からの定時の合図と、GitHub アプリの「Run workflow」
+    inputs:
+      mode:
+        description: "midday＝昼（前場の途中）／close＝夕方（終値）／news＝夜（ニュース確認）"
+        type: choice
+        options: [news, midday, close]
+        default: news
+      force:
+        description: "今日のニュース確認が済んでいても Gemini を呼び直す"
+        type: boolean
+        default: true
 
 permissions:
-  contents: write   # 60 日放置で定期実行が止まらないようにする空コミット用
+  contents: read
   pages: write
   id-token: write
 
@@ -46,8 +53,8 @@ jobs:
           NEWS_MAX_CALLS: ${{ vars.NEWS_MAX_CALLS || '30' }}
           # push のときは Gemini を呼ばず、公開中の前回の判定を使い回す
           NEWS_MODE: ${{ github.event_name == 'push' && 'reuse' || '' }}
-          NEWS_FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
-          RUN_MODE: ${{ github.event.schedule == '43 2 * * 1-5' && 'midday' || github.event.schedule == '41 7 * * 1-5' && 'close' || 'news' }}
+          NEWS_FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force && '1' || '' }}
+          RUN_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'news' }}
           PREV_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/latest.json
         run: python -m pipeline.run --out web/public/data
 
@@ -73,17 +80,6 @@ jobs:
         with:
           path: web/dist
 
-      - name: Keepalive（60 日コミットがないと GitHub が定期実行を止めるのを防ぐ）
-        if: github.event_name == 'schedule'
-        run: |
-          last=$(git log -1 --format=%ct)
-          now=$(date +%s)
-          if [ $(( (now - last) / 86400 )) -ge 45 ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit --allow-empty -m "keepalive"
-            git push
-          fi
 
   deploy:
     needs: build
