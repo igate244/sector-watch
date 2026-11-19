@@ -4,7 +4,7 @@ Gemini の見立て: 買い候補の上位 7 銘柄を 1 つずつ Gemini（Hydr
 
 PICKS_MODEL      使うモデル（既定: gemini-4-hydrogen）
 PICKS_N          調べる銘柄の数（既定: 7）
-PICKS_THINKING   考える量（既定: low。high にすると深くなるが費用が 2 倍以上）
+PICKS_THINKING   考える量（low・medium・high・xhigh。既定: medium）
 """
 
 from __future__ import annotations
@@ -137,7 +137,7 @@ def run(stocks: list[dict], n225_r20: float | None, asof: str, prev: dict | None
     targets = top_buys(stocks, n)
     if not targets:
         return {"asof": asof, "model": model, "items": [], "top3": [], "overall": "今日は買い候補がありません", "usage": None}
-    g = news.Gemini(key, model, n + 1, os.environ.get("PICKS_THINKING", "").strip() or "low")
+    g = news.Gemini(key, model, n + 1, os.environ.get("PICKS_THINKING", "").strip() or "medium")
     items = []
     for st in targets:
         r = ask_one(g, st, n225_r20, asof)
