@@ -51,7 +51,7 @@ def _parse_view(text: str) -> dict:
         m = re.search(rf"{key}[:：]\s*(.*?)(?=\n\S+[:：]|\Z)", text, re.S)
         if m:
             items = re.findall(r"^[\s　]*[・\-\*•]\s*(.+)$", m.group(1), re.M)
-            out[field] = [i.strip()[:80] for i in items if i.strip() and i.strip() != "なし"][:3]
+            out[field] = [i.strip()[:160] for i in items if i.strip() and i.strip() != "なし"][:3]
     if not out["summary"]:
         out["summary"] = re.sub(r"\s+", " ", text).strip()[:120]
     return out

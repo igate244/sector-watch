@@ -10,7 +10,7 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
-  { v: '0.20.2', date: '2026-11-19', items: ['Gemini の見立ての考える量を「普通」に'] },
+  { v: '0.20.2', date: '2026-11-19', items: ['Gemini の見立ての考える量を「普通」に（浅い・深いと比べて決定）', '根拠・リスクの文が途中で切れないように'] },
   { v: '0.20.1', date: '2026-11-19', items: ['Gemini の見立ての「考える量」を控えめにして費用を下げる'] },
   {
     v: '0.20.0',
