@@ -28,8 +28,10 @@ NOISE = re.compile(r"株価・株式情報|株価チャート|掲示板|株主�
 
 
 class Gemini:
-    def __init__(self, key: str, model: str, max_calls: int):
+    def __init__(self, key: str, model: str, max_calls: int, thinking: str | None = None):
         self.key = key
+        # 考える量（Gemini 3 以降の thinkingLevel: low など）。指定するとトークン＝費用が減る
+        self.thinking = thinking
         self.model = model or DEFAULT_MODEL
         self.left = max_calls
         self.used = 0
@@ -57,6 +59,8 @@ class Gemini:
         }
         if search:
             body["tools"] = [{"google_search": {}}]
+        if self.thinking:
+            body["generationConfig"]["thinkingConfig"] = {"thinkingLevel": self.thinking}
         for attempt in range(2):
             try:
                 resp = requests.post(
@@ -65,6 +69,12 @@ class Gemini:
                 )
                 if resp.status_code == 429 and attempt == 0:
                     time.sleep(30)
+                    continue
+                if resp.status_code == 400 and self.thinking and "think" in resp.text.lower() and attempt == 0:
+                    # このモデルが考える量の指定を受け付けないときは、指定なしで聞き直す
+                    print(f"[gemini] thinkingLevel={self.thinking} が使えないので外します")
+                    self.thinking = None
+                    body["generationConfig"].pop("thinkingConfig", None)
                     continue
                 if resp.status_code in (400, 401, 402, 403, 404):
                     # キー・支払い・モデル名の問題は何度呼んでも同じなので、この回はもう呼ばない

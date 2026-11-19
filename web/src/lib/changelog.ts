@@ -10,6 +10,7 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  { v: '0.20.1', date: '2026-11-19', items: ['Gemini の見立ての「考える量」を控えめにして費用を下げる'] },
   {
     v: '0.20.0',
     date: '2026-11-19',
