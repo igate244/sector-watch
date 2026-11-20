@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { TradeStatsCard } from '../components/TradeStatsCard';
 import type { Nav } from '../App';
 import { loadCodes, stockByCode, type DataState, type Latest, type Stock } from '../lib/data';
 import { db } from '../lib/db';
@@ -129,6 +130,8 @@ export default function HoldingsScreen({ state, nav }: { state: DataState; nav: 
           </div>
         </Card>
       )}
+
+      <TradeStatsCard d={d ?? null} nav={nav} />
 
       <CsvImport />
 

@@ -80,7 +80,7 @@ export function promptForEarnings(date: string, names: { name: string; code?: st
 }
 
 /** 押した瞬間のうちにコピーする（あとからだと、Gemini の画面に切り替わって失敗することがある） */
-function copyNow(text: string): boolean {
+export function copyNow(text: string): boolean {
   const ta = document.createElement('textarea');
   ta.value = text;
   ta.setAttribute('readonly', '');

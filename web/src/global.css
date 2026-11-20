@@ -671,3 +671,22 @@ button.card:active { background: var(--surface2); }
 .pk-src { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 4px 0 0; font-size: 0.7rem; }
 .pk-src a { color: var(--accent); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pk-note { margin: 8px 0 0; font-size: 0.68rem; color: var(--muted); }
+
+/* 売買の成績 */
+.ts-kpi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ts-kpi .k { font-size: 0.68rem; color: var(--muted); }
+.ts-kpi .v { font-size: 1.2rem; font-weight: 800; line-height: 1.3; white-space: nowrap; }
+.ts-kpi .sub { font-size: 0.66rem; color: var(--muted); }
+.ts-avg { margin: 8px 0 2px; font-size: 0.74rem; color: var(--ink2); }
+.ts-ask { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.ts-ask .btn { flex: 1 1 auto; }
+.ts-detail { margin-top: 6px; }
+.ts-table { width: 100%; border-collapse: collapse; margin: 8px 0 4px; font-size: 0.78rem; }
+.ts-table caption { text-align: left; font-size: 0.72rem; font-weight: 700; color: var(--muted); padding-bottom: 2px; }
+.ts-table th, .ts-table td { padding: 4px 2px; border-top: 1px solid var(--line); text-align: right; font-weight: 500; }
+.ts-table th[scope='row'] { text-align: left; }
+.ts-table thead th { font-size: 0.66rem; color: var(--muted); border-top: 0; }
+.ts-exits { margin-top: 10px; }
+.ts-exits-t { font-size: 0.72rem; font-weight: 700; color: var(--muted); }
+.ts-exit { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; padding: 6px 0; border: 0; border-top: 1px solid var(--line); background: none; color: inherit; font: inherit; font-size: 0.8rem; text-align: left; cursor: pointer; }
+.ts-exit-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
