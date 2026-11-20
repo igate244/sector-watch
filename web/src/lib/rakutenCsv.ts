@@ -1,8 +1,10 @@
 import { newId, tradeKey, type Side, type Trade } from './db';
 
 /**
- * 楽天証券の「取引履歴」CSV（国内株式・投信などがまとめて入ったもの）を読む。
- * 文字コードは Shift_JIS。取り込むのは「株式購入」「株式売却」の行だけ（投信・配当・入出金は対象外）。
+ * 楽天証券の取引履歴 CSV を読む。2 種類に対応する:
+ *  1. 「取引履歴」（国内株式・投信などがまとめて入ったもの）: 取引区分が「株式購入」「株式売却」の行だけ
+ *  2. 「国内株式の取引履歴」（tradehistoryJP_*.csv）: 売買区分が「買付」「売付」の現物の行だけ（信用は対象外）
+ * 文字コードは Shift_JIS（UTF-8 で保存し直したものも読める）。
  *
  * この CSV は銘柄コード欄が「-」のことが多く、名前しか入っていない。
  * しかも全角・空白入り（「任　天　堂」「ＫＯＡ」）や途中で切れた名前（「サイバーステップホールディ」）がある。
@@ -65,10 +67,13 @@ export function parseRakutenCsv(text: string, codes: [string, string][]): Parsed
   const iKind = col('取引区分');
   const iAcct = col('口座区分');
   const iCode = col('銘柄コード');
-  const iName = col('対象証券');
+  const iSide = col('売買区分'); // 国内株式の取引履歴だけにある
+  const iCredit = col('信用区分');
+  const jp = iSide >= 0;
+  const iName = jp ? col('銘柄名') : col('対象証券');
   const iPrice = col('単価');
   const iQty = col('数量');
-  if ([iDate, iKind, iName, iPrice, iQty].some((i) => i < 0)) {
+  if ([iDate, iName, iPrice, iQty].some((i) => i < 0) || (!jp && iKind < 0)) {
     throw new Error('楽天証券の取引履歴 CSV ではないようです（見出しが違います）');
   }
 
@@ -91,11 +96,21 @@ export function parseRakutenCsv(text: string, codes: [string, string][]): Parsed
   const seen = new Map<string, number>();
   for (const line of lines.slice(1)) {
     const c = splitCsvLine(line);
-    const kind = c[iKind]?.trim();
     let side: Side;
-    if (kind === '株式購入') side = 'buy';
-    else if (kind === '株式売却') side = 'sell';
-    else continue;
+    if (jp) {
+      // 国内株式の取引履歴: 売買区分で判断。信用取引（信用区分が「-」以外・取引区分に「信用」）は除く
+      const s = c[iSide]?.trim();
+      const credit = (iCredit >= 0 ? c[iCredit]?.trim() : '-') || '-';
+      if (credit !== '-' || (c[iKind] ?? '').includes('信用')) continue;
+      if (s === '買付') side = 'buy';
+      else if (s === '売付') side = 'sell';
+      else continue;
+    } else {
+      const kind = c[iKind]?.trim();
+      if (kind === '株式購入') side = 'buy';
+      else if (kind === '株式売却') side = 'sell';
+      else continue;
+    }
     const name = (c[iName] ?? '').normalize('NFKC').replace(/\s+/g, '').trim();
     const price = num(c[iPrice] ?? '');
     const qty = num(c[iQty] ?? '');
@@ -121,6 +136,11 @@ export function parseRakutenCsv(text: string, codes: [string, string][]): Parsed
     out.push({ trade: t, unresolved: !code });
   }
   return out;
+}
+
+/** 形式の違う CSV（名前の書き方が違う）で同じ取引を 2 回入れないための照合キー（コードが分かるときだけ） */
+export function codeKey(t: Pick<Trade, 'date' | 'code' | 'side' | 'price' | 'qty'>): string | null {
+  return t.code ? [t.date, t.code, t.side, t.price, t.qty].join('|') : null;
 }
 
 export function toTrade(p: ParsedTrade): Trade {

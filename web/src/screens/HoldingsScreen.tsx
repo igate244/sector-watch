@@ -3,7 +3,7 @@ import type { Nav } from '../App';
 import { loadCodes, stockByCode, type DataState, type Latest, type Stock } from '../lib/data';
 import { db } from '../lib/db';
 import { dir, signedYen, yen } from '../lib/format';
-import { decodeCsv, parseRakutenCsv, toTrade, type ParsedTrade } from '../lib/rakutenCsv';
+import { codeKey, decodeCsv, parseRakutenCsv, toTrade, type ParsedTrade } from '../lib/rakutenCsv';
 import { usePositions } from '../lib/useHoldings';
 import { Card, Chg, Count, Empty, Pct, Segmented, SettingsButton, SignalBadge, TopBar } from '../components/ui';
 import LineChart from '../components/LineChart';
@@ -369,8 +369,29 @@ function CsvImport() {
     setMsg('');
     try {
       const rows = parseRakutenCsv(decodeCsv(await f.arrayBuffer()), await loadCodes());
-      const have = new Set((await db.trades.toArray()).map((t) => t.key));
-      const fresh = rows.filter((r) => !have.has(r.trade.key));
+      const all = await db.trades.toArray();
+      const have = new Set(all.map((t) => t.key));
+      // 別の形式の CSV で取り込み済みの取引も除く（日付・コード・売買・単価・株数が同じものを、件数ぶんだけ）
+      const left = new Map<string, number>();
+      for (const t of all) {
+        const k = codeKey(t);
+        if (k) left.set(k, (left.get(k) ?? 0) + 1);
+      }
+      const fresh = rows.filter((r) => {
+        if (have.has(r.trade.key)) {
+          const k = codeKey(r.trade);
+          if (k && left.get(k)) left.set(k, left.get(k)! - 1);
+          return false;
+        }
+        return true;
+      }).filter((r) => {
+        const k = codeKey(r.trade);
+        if (k && left.get(k)) {
+          left.set(k, left.get(k)! - 1);
+          return false;
+        }
+        return true;
+      });
       setPreview({ rows: fresh, dup: rows.length - fresh.length });
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
@@ -393,8 +414,8 @@ function CsvImport() {
   return (
     <Card title="楽天証券の取引履歴を取り込む">
       <p className="muted small">
-        楽天証券のアプリ／サイトの「取引履歴」から CSV をダウンロードして選ぶ。国内株式の購入・売却だけを取り込み、
-        投信・配当・入出金は無視する。同じ取引は 2 回入らない。
+        楽天証券の「取引履歴」または「国内株式の取引履歴」の CSV を選ぶ。国内株式（現物）の購入・売却だけを取り込み、
+        投信・配当・入出金・信用は無視する。同じ取引は 2 回入らない。
       </p>
       <input ref={input} type="file" accept=".csv,text/csv" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
       <button type="button" className="btn" onClick={() => input.current?.click()}>
