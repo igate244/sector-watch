@@ -177,6 +177,16 @@ def main() -> None:
                 f.write("skip=true\n")
             return
         raise SystemExit(1)
+    # 祝日など今日の取引がない日は、定時の回（cron-job.org から）を見送る。Gemini も呼ばない。
+    # 手動の Run workflow（force）と push（画面の更新）はそのまま進める
+    scheduled = os.environ.get("NEWS_MODE", "") != "reuse" and not os.environ.get("NEWS_FORCE")
+    if scheduled and market.index[-1] < today:
+        print(f"[skip] 今日（{today:%Y-%m-%d}）は取引がない（休場）ので、今回は計算・公開を見送ります")
+        gh_out = os.environ.get("GITHUB_OUTPUT")
+        if gh_out:
+            with open(gh_out, "a", encoding="utf-8") as f:
+                f.write("skip=true\n")
+        return
     for r in rows:
         if r["code"] + ".T" not in closes:
             notes.append(f"{r['code']} {r['name']} の株価が取れませんでした（上場廃止・コード違いの可能性）")

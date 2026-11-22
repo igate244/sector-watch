@@ -181,3 +181,9 @@ trades: id, date, code, name, side(buy|sell), price, qty, account(NISA|特定|�
 - latest.json の `picks`: {asof, model, items[], top3[{code, reason}], overall, usage{calls, in, out, yen}}
 - 考える量は thinkingLevel=medium（11/19 の実測・8 回: low 約 20 円で強気に偏る／medium 約 38 円で根拠が具体的／high 約 69 円。medium に決定）
 - 環境変数: PICKS_MODEL（既定 gemini-4-hydrogen）、PICKS_N（既定 10）、PICKS_THINKING（既定 medium）
+
+## 休場日（v0.21.1〜）
+
+- cron-job.org は平日（月〜金）だけ起こす。土日は何も動かない
+- 祝日・年末年始など平日の休場日は、日経平均の最新日が今日より前なので「[skip] 休場」で見送る（計算・公開・Gemini なし）
+- 手動の Run workflow（force）と push は見送らない

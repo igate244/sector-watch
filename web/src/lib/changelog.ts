@@ -10,6 +10,7 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  { v: '0.21.1', date: '2026-11-22', items: ['祝日など取引のない平日は、自動計算を見送る（Gemini も呼ばない）'] },
   {
     v: '0.21.0',
     date: '2026-11-20',
