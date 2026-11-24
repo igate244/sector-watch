@@ -1,4 +1,7 @@
 import { useRef, useState } from 'react';
+import { HoldChip } from '../components/HoldChip';
+import { holdCheck } from '../lib/holdCheck';
+import { askGemini, promptForHold, promptForHoldings } from '../lib/askGemini';
 import { TradeStatsCard } from '../components/TradeStatsCard';
 import type { Nav } from '../App';
 import { loadCodes, stockByCode, type DataState, type Latest, type Stock } from '../lib/data';
@@ -128,6 +131,20 @@ export default function HoldingsScreen({ state, nav }: { state: DataState; nav: 
                 <NoPriceRow key={p.code || p.name} p={p} nav={nav} />
               ))}
           </div>
+          {d && priced.length > 0 && (
+            <>
+              <button
+                type="button"
+                className="btn ask-pro hold-ask"
+                onClick={() =>
+                  askGemini(promptForHoldings(priced.map((r) => ({ s: r.s, qty: r.p.qty, avg: r.p.avg, firstBuy: r.p.firstBuy })), d.asof))
+                }
+              >
+                ✦ 保有 {priced.length} 銘柄をまとめて AI に聞く
+              </button>
+              <p className="note">✓ 大丈夫・⚠ 注意（この銘柄だけの下げ）・✋ 見直し（取得から −10% 超）はアプリの数字での目安。押すと質問をコピーして Gemini を開きます。</p>
+            </>
+          )}
         </Card>
       )}
 
@@ -197,12 +214,16 @@ function HoldingRow({
 }) {
   const { p, s } = r;
   const per = usePeriod();
+  const hc = holdCheck(s, p.avg, d);
   const sector = d.sectors.find((x) => x.name === s.sector);
   return (
     <div className="hrow" data-open={open}>
       <button type="button" className="hrow-main" onClick={onToggle} aria-expanded={open}>
         <span className="hrow-name">
-          <span className="row-title">{s.name}</span>
+          <span className="row-title hrow-title">
+            <span className="hrow-title-n">{s.name}</span>
+            <HoldChip c={hc} />
+          </span>
           <span className="row-sub">
             <span className="num">{p.qty.toLocaleString('ja-JP')}株</span>
             <span className="num">¥{yen(p.avg, 0)}→{s.last.toLocaleString('ja-JP')}</span>
@@ -230,6 +251,17 @@ function HoldingRow({
             <span className="num">評価額 ¥{yen(r.val)}</span>
             <SignalBadge label={s.signal.label} days={s.signal.days} capped={s.signal.capped} />
           </div>
+          <p className={`hold-reason hold-${hc.level}`}>
+            <span aria-hidden>{hc.icon}</span> {hc.reason}
+            {hc.gemini && <span className="muted">（夜の Gemini の見立て: {hc.gemini}）</span>}
+          </p>
+          <button
+            type="button"
+            className="btn ask-pro hold-ask"
+            onClick={() => askGemini(promptForHold({ s, qty: p.qty, avg: p.avg, firstBuy: p.firstBuy }))}
+          >
+            ✦ このまま持ってて大丈夫？（Gemini に聞く）
+          </button>
           <p className="note" style={{ margin: '0 0 2px' }}>チャート: {PERIOD_LABEL[per]}（期間は下のバー）</p>
           <LineChart unit="¥"
             dates={d.dates}

@@ -185,3 +185,73 @@ const SIGNAL_JA: Record<string, string> = {
   watch: '様子見',
   none: '特になし',
 };
+
+/* ------------------------------------------------------------------ 保有の「このまま持ってて大丈夫？」 */
+
+export interface HeldInfo {
+  s: Stock;
+  qty: number;
+  avg: number;
+  firstBuy: string;
+}
+
+const pctS = (x: number | null | undefined) => (x == null ? '不明' : `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}%`);
+
+function heldFacts(h: HeldInfo): string {
+  const { s } = h;
+  const d20 = s.dec['20'];
+  return [
+    `${s.name}（東証 ${s.code}・${s.sector}）`,
+    `私の保有 ${h.qty.toLocaleString('ja-JP')} 株・平均取得 ${Math.round(h.avg).toLocaleString('ja-JP')} 円（${h.firstBuy} から）→ 現在 ${s.last.toLocaleString('ja-JP')} 円（${s.asof}）、損益 ${pctS(s.last / h.avg - 1)}`,
+    `前日比 ${pctS(s.dec['1']?.r)}／20 日 ${pctS(d20?.r)}（内訳: 日経平均の分 ${pctS(d20?.m)}・業種の分 ${pctS(d20?.s)}・この銘柄だけの分 ${pctS(d20?.i)}）／60 日高値から ${pctS(s.dd60)}`,
+    `アプリの判定: ${SIGNAL_JA[s.signal.label] ?? s.signal.label}${s.signal.reason ? `（${s.signal.reason}）` : ''}`,
+    s.earnings?.next ? `次の決算: ${s.earnings.next}${s.earnings.next_est ? '（目安）' : ''}` : '',
+  ]
+    .filter(Boolean)
+    .join('／');
+}
+
+const HOLD_RULES = [
+  '判定は次の 3 つのどれか一つ。記号もそのまま使うこと:',
+  '🟢 持ち続ける ／ 🟡 様子見・一部利確 ／ 🔴 売る・損切り',
+  '',
+  '守ること: 前置きや調べた過程は書かない。事実と意見を分ける。わからないことは「不明」と書き、作らない。最終判断は私がする前提で率直に。',
+];
+
+/** 保有銘柄 1 つについて「このまま持ってて大丈夫か」を一目でわかる形で聞く */
+export function promptForHold(h: HeldInfo): string {
+  return [
+    `あなたは日本株のプロのトレーダーです。私が持っている ${h.s.name}（${h.s.code}）を「このまま持ち続けて大丈夫か」判断してください。`,
+    'まず Google 検索で、直近 1 ヶ月のニュース・適時開示・決算と業績予想・チャートの形（25 日・75 日移動平均、直近の高値安値）を調べてから答えてください。',
+    '',
+    `材料: ${heldFacts(h)}`,
+    '',
+    '【答えの形】この形だけで、一目でわかるように。',
+    '1 行目: 判定の記号と判定 ＋ 20 字以内のひとこと',
+    '2 行目: 損切りの目安 ○○円（理由を短く） ／ 利確の目安 ○○円',
+    '3〜5 行目: ・根拠を 3 つ（1 行ずつ、日付つきの事実で）',
+    '6 行目: 次に見るべき出来事（決算日など）',
+    '',
+    ...HOLD_RULES,
+  ].join('\n');
+}
+
+/** 保有銘柄をまとめて、一覧表で一目でわかる形で聞く */
+export function promptForHoldings(hs: HeldInfo[], asof: string): string {
+  return [
+    `あなたは日本株のプロのトレーダーです。${asof} 時点で私が持っている ${hs.length} 銘柄それぞれについて、「このまま持ち続けて大丈夫か」判断してください。`,
+    '銘柄ごとに Google 検索で、直近 1 ヶ月のニュース・適時開示・決算と業績予想・チャートの形を調べてから答えてください。',
+    '',
+    '材料（私の保有とアプリの数字）:',
+    ...hs.map((h) => `・${heldFacts(h)}`),
+    '',
+    '【答えの形】一目でわかるように、次の順で。',
+    '1. 最初に一覧表（これだけ見れば済むように）:',
+    '| 銘柄 | 判定 | ひとこと（20 字以内） | 損切り目安 | 利確目安 |',
+    '   判定が 🔴 の銘柄を上に、🟢 を下に並べる',
+    '2. 全体へのひとこと（2 行以内。偏り・資金配分で気になること）',
+    '3. 銘柄ごとの根拠（各 2〜3 行、日付つきの事実で。🔴・🟡 を先に）',
+    '',
+    ...HOLD_RULES,
+  ].join('\n');
+}

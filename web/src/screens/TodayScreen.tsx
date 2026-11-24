@@ -2,11 +2,13 @@ import { useState } from 'react';
 import type { Nav } from '../App';
 import { type DataState, type Latest, type MarketBlock, type MarketEvent, type Stock } from '../lib/data';
 import { asHorizon, chartDays, PERIOD_LABEL, PERIODS, retOf, usePeriod, winRet, type Period } from '../lib/period';
-import { useHeldCodes } from '../lib/useHoldings';
+import { useHeldCodes, usePositions } from '../lib/useHoldings';
+import { holdCheck } from '../lib/holdCheck';
+import { HoldChip } from '../components/HoldChip';
 import { Freshness, Loading, StockRow } from '../components/parts';
 import { Card, Count, Empty, Pct, Segmented, SettingsButton, TopBar } from '../components/ui';
 import LineChart from '../components/LineChart';
-import { askGemini, promptForEarnings, promptForEvent } from '../lib/askGemini';
+import { askGemini, promptForEarnings, promptForEvent, promptForHoldings } from '../lib/askGemini';
 
 export default function TodayScreen({ state, nav }: { state: DataState; nav: Nav }) {
   const h = usePeriod();
@@ -63,7 +65,7 @@ export default function TodayScreen({ state, nav }: { state: DataState; nav: Nav
             heldNames={d.stocks.filter((x) => held.has(x.code)).map((x) => x.name)}
           />
 
-          <HeldToday stocks={d.stocks.filter((s) => held.has(s.code))} h={h} nav={nav} />
+          <HeldToday d={d} stocks={d.stocks.filter((s) => held.has(s.code))} h={h} nav={nav} />
 
           <Ranking stocks={d.stocks} h={h} held={held} nav={nav} />
 
@@ -150,9 +152,16 @@ function MarketChart({ d, h }: { d: Latest; h: Period }) {
 }
 
 /** 保有株。動きの大きい順に 5 つまで、1 行ずつ詰めて */
-function HeldToday({ stocks, h, nav }: { stocks: Stock[]; h: Period; nav: Nav }) {
+function HeldToday({ d, stocks, h, nav }: { d: Latest; stocks: Stock[]; h: Period; nav: Nav }) {
   const [all, setAll] = useState(false);
+  const pos = usePositions();
   if (!stocks.length) return null;
+  const avgOf = new Map((pos ?? []).filter((p) => p.qty > 0).map((p) => [p.code, p]));
+  const checks = stocks.flatMap((s) => {
+    const p = avgOf.get(s.code);
+    return p ? [{ s, p, c: holdCheck(s, p.avg, d) }] : [];
+  });
+  const alerts = checks.filter((x) => x.c.level !== 'ok').sort((a, b) => (a.c.level === 'review' ? -1 : 1) - (b.c.level === 'review' ? -1 : 1));
   const list = [...stocks].sort((a, b) => Math.abs(retOf(b, h) ?? 0) - Math.abs(retOf(a, h) ?? 0));
   return (
     <Card title={<>保有株 <Count n={stocks.length} /></>} action={<span className="note" style={{ margin: 0 }}>動きの大きい順</span>}>
@@ -165,6 +174,29 @@ function HeldToday({ stocks, h, nav }: { stocks: Stock[]; h: Period; nav: Nav })
         <button type="button" className="link-btn block" onClick={() => setAll(!all)}>
           {all ? '閉じる' : `残り ${list.length - 5} 件を見る`}
         </button>
+      )}
+      {checks.length > 0 && (
+        <div className="held-check">
+          {alerts.length ? (
+            alerts.map((x) => (
+              <button key={x.s.code} type="button" className="held-alert" onClick={() => nav.open({ kind: 'stock', code: x.s.code })}>
+                <HoldChip c={x.c} />
+                <span className="held-alert-t">
+                  <b>{x.s.name}</b> {x.c.reason}
+                </span>
+              </button>
+            ))
+          ) : (
+            <p className="small hold-ok">✓ 保有 {checks.length} 銘柄とも、アプリの数字では気になる点なし</p>
+          )}
+          <button
+            type="button"
+            className="btn ask-pro hold-ask"
+            onClick={() => askGemini(promptForHoldings(checks.map((x) => ({ s: x.s, qty: x.p.qty, avg: x.p.avg, firstBuy: x.p.firstBuy })), d.asof))}
+          >
+            ✦ 保有をまとめて「持ってて大丈夫？」を AI に聞く
+          </button>
+        </div>
       )}
     </Card>
   );
