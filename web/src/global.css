@@ -690,3 +690,21 @@ button.card:active { background: var(--surface2); }
 .ts-exits-t { font-size: 0.72rem; font-weight: 700; color: var(--muted); }
 .ts-exit { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; padding: 6px 0; border: 0; border-top: 1px solid var(--line); background: none; color: inherit; font: inherit; font-size: 0.8rem; text-align: left; cursor: pointer; }
 .ts-exit-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 保有の「このまま持ってて大丈夫か」 */
+.hold-chip { display: inline-flex; align-items: center; gap: 2px; padding: 0 5px; border-radius: 4px; font-size: 0.66rem; font-weight: 700; white-space: nowrap; }
+.hold-ok, .hold-chip.hold-ok { color: var(--good-text); }
+.hold-chip.hold-ok { background: color-mix(in oklab, var(--good) 14%, var(--surface)); }
+.hold-chip.hold-warn { color: var(--warn); background: color-mix(in oklab, var(--warn) 16%, var(--surface)); }
+.hold-chip.hold-review { color: #fff; background: var(--warn); }
+.hold-reason { margin: 2px 0 6px; font-size: 0.78rem; line-height: 1.5; }
+.hold-reason.hold-warn, .hold-reason.hold-review { color: var(--warn); }
+.hold-reason.hold-ok { color: var(--good-text); }
+.hold-ask { width: 100%; margin: 4px 0 8px; }
+.held-check { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.held-alert { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 6px 0; border: 0; background: none; color: inherit; font: inherit; font-size: 0.78rem; text-align: left; cursor: pointer; line-height: 1.45; }
+.held-alert .hold-chip { flex: none; margin-top: 1px; }
+.held-alert-t { min-width: 0; }
+.hrow-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.hrow-title-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hrow-title .hold-chip { flex: none; }
