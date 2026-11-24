@@ -114,8 +114,11 @@ export default function LineChart({ dates, series, days, height = 220, refLine, 
   const at = hover ?? view.length - 1;
   // 縦線の上に出す、触れた日の main の値（株価・指数そのもの）
   const mainRaw = series.find((s) => s.kind === 'main')?.values.slice(start)[at] ?? null;
+  // 日付（1 日の分足なら時刻）＋値。例: 8/1 ¥10,750
   const priceText =
-    mainRaw == null ? '' : `${unit}${mainRaw.toLocaleString('ja-JP', { maximumFractionDigits: mainRaw >= 1000 ? 0 : 1 })}`;
+    mainRaw == null
+      ? ''
+      : `${view[at] ? `${fmtX(view[at])} ` : ''}${unit}${mainRaw.toLocaleString('ja-JP', { maximumFractionDigits: mainRaw >= 1000 ? 0 : 1 })}`;
   const pillW = priceText.length * 7 + 14;
   const pillX = Math.max(PAD.left, Math.min(PAD.left + iw - pillW, x(at) - pillW / 2));
   const onMove = (e: React.PointerEvent<SVGSVGElement>) => {

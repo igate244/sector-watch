@@ -10,6 +10,7 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  { v: '0.22.1', date: '2026-11-24', items: ['チャートを触ったときの価格に日付も表示（例: 8/1 ¥10,750。1 日の分足は時刻）'] },
   {
     v: '0.22.0',
     date: '2026-11-24',
