@@ -4,6 +4,7 @@ Gemini の見立て: 買い候補の上位 10 銘柄を 1 つずつ Gemini（Hyd
 
 PICKS_MODEL      使うモデル（既定: gemini-4-hydrogen）
 PICKS_N          調べる銘柄の数（既定: 10）
+PICKS_PER_SECTOR 同じセクターから選ぶ上限（既定: 3）
 PICKS_THINKING   考える量（low・medium・high・xhigh。既定: medium）
 """
 
@@ -26,11 +27,21 @@ def _pct(x: float | None) -> str:
     return "不明" if x is None else f"{x * 100:+.1f}%"
 
 
-def top_buys(stocks: list[dict], n: int) -> list[dict]:
-    """候補タブの「買い」と同じ並び（珍しい下げの順）で上位 n 件"""
+def top_buys(stocks: list[dict], n: int, per_sector: int = 3) -> list[dict]:
+    """候補タブの「買い」と同じ並び（珍しい下げの順）で上位 n 件。同じセクターは per_sector 件まで（偏らないように）"""
     buys = [s for s in stocks if s["signal"]["label"] == "buy"]
     buys.sort(key=lambda s: s.get("z20") if s.get("z20") is not None else 0)
-    return buys[:n]
+    out: list[dict] = []
+    count: dict[str, int] = {}
+    for s in buys:
+        sec = s.get("sector", "")
+        if count.get(sec, 0) >= per_sector:
+            continue
+        count[sec] = count.get(sec, 0) + 1
+        out.append(s)
+        if len(out) >= n:
+            break
+    return out
 
 
 def _parse_view(text: str) -> dict:
@@ -134,7 +145,7 @@ def run(stocks: list[dict], n225_r20: float | None, asof: str, prev: dict | None
         return prev
     model = os.environ.get("PICKS_MODEL", "").strip() or DEFAULT_MODEL
     n = int(os.environ.get("PICKS_N", "10"))
-    targets = top_buys(stocks, n)
+    targets = top_buys(stocks, n, int(os.environ.get("PICKS_PER_SECTOR", "3")))
     if not targets:
         return {"asof": asof, "model": model, "items": [], "top3": [], "overall": "今日は買い候補がありません", "usage": None}
     g = news.Gemini(key, model, n + 1, os.environ.get("PICKS_THINKING", "").strip() or "medium")

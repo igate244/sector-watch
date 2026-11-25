@@ -94,6 +94,11 @@ def test_picks_parse():
     st = [{"signal": {"label": "buy"}, "z20": z, "code": c} for c, z in (("A", -1.0), ("B", -3.0), ("C", None))]
     st.append({"signal": {"label": "watch"}, "z20": -9, "code": "D"})
     assert [s["code"] for s in picks.top_buys(st, 2)] == ["B", "A"]
+    same = [{"signal": {"label": "buy"}, "z20": -float(i), "code": f"S{i}", "sector": "X" if i < 5 else "Y"} for i in range(8)]
+    got = [s["code"] for s in picks.top_buys(same, 4, per_sector=3)]
+    assert got == ["S7", "S6", "S5", "S4"], got  # Y が 3 つまで → 次の X
+    secs = [s["sector"] for s in picks.top_buys(same, 6, per_sector=3)]
+    assert secs.count("X") <= 3 and secs.count("Y") <= 3 and len(secs) == 6, secs
 
 
 if __name__ == "__main__":
